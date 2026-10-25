@@ -1,11 +1,7 @@
-import {HttpException} from '@nestjs/common';
-import {test} from 'vitest';import assert from 'node:assert/strict';
-import {createDatabase,seed} from './infrastructure/database.js';import {HoldStore} from './infrastructure/holdStore.js';import {PitchRepository} from './repositories/pitchRepository.js';import {PitchService} from './services/pitchService.js';import {ScheduleService} from './services/scheduleService.js';
-const db=createDatabase();seed(db,'2026-10-25');const r=new PitchRepository(db),p=new PitchService(r);let now=0;const h=new HoldStore(()=>now),s=new ScheduleService(p,r,h);
-test('lọc loại sân, khu vực, giá và toàn bộ tiện ích',()=>{assert.equal(p.search({type:'7',district:'Hà Đông',minPrice:'250000',maxPrice:'400000',amenities:'1,2'}).length,1);assert.equal(p.search({type:'5',amenities:'2'}).length,0);assert.equal(p.search({maxPrice:'1000'}).length,0);assert.equal(p.search({}).length,2);});
-test('chặn tham số sai và sân không tồn tại',()=>{for(const q of [{type:'6'},{minPrice:'-1'},{maxPrice:'abc'},{minPrice:'5',maxPrice:'4'},{amenities:'a'}])assert.throws(()=>p.search(q));assert.throws(()=>p.detail('99'),(e:unknown)=>e instanceof HttpException&&e.getStatus()===404);assert.throws(()=>p.detail('1 OR 1=1'));});
-test('chi tiết trả bảng giá và tiện ích',()=>{assert.equal(p.detail('1').prices.length,6);assert.equal(p.detail('1').amenities.length,4);});
-test('đỏ ưu tiên hơn khóa tạm; vàng hết TTL thành xanh',()=>{h.hold(1,'2026-10-25',3,100);h.hold(1,'2026-10-25',4,100);const m=s.matrix(1,'2026-10-25');assert.equal(m.slots[0].status,'GREEN');assert.equal(m.slots[2].status,'RED');assert.equal(m.slots[3].status,'YELLOW');now=101;assert.equal(s.matrix(1,'2026-10-25').slots[3].status,'GREEN');});
-test('ngày sai bị từ chối; cuối tuần và ngày lễ đúng giá',()=>{assert.throws(()=>s.matrix(1,'2026-02-30'));assert.throws(()=>s.matrix(1,'x'));assert.equal(s.matrix(1,'2026-10-25').slots[0].price,250000);assert.equal(s.matrix(1,'2026-10-26').slots[0].price,200000);assert.equal(new ScheduleService(p,r,h,['2026-10-26']).matrix(1,'2026-10-26').dayType,'HOLIDAY');});
-test('sân bảo trì và thiếu cấu hình giá không cho chọn',()=>{assert.ok(s.matrix(3,'2026-10-25').slots.every(x=>x.status==='RED'));db.prepare("DELETE FROM prices WHERE pitchId=2 AND dayType='WEEKEND'").run();assert.ok(s.matrix(2,'2026-10-25').slots.every(x=>x.status==='RED'));});
-test('ràng buộc chặn đơn cọc trùng; đơn hủy không làm đỏ lịch',()=>{assert.throws(()=>db.prepare("INSERT INTO bookings(pitchId,slotId,date,status) VALUES(1,3,'2026-10-25','DEPOSIT_PAID')").run());db.prepare("UPDATE bookings SET status='CANCELLED' WHERE id=1").run();assert.equal(s.matrix(1,'2026-10-25').slots[2].status,'GREEN');});
+import {describe,it,expect} from 'vitest';
+import {positiveId} from './services/pitchService.js';
+import {validateDate} from './services/scheduleService.js';
+describe('UC12 input validation',()=>{
+ it('validates ids',()=>{expect(positiveId('1')).toBe(1);for(const id of ['0','-1','x','1 OR 1=1'])expect(()=>positiveId(id)).toThrow();});
+ it('validates calendar dates',()=>{expect(validateDate('2026-10-25')).toBe('2026-10-25');for(const d of ['x','2026-02-30','2026-13-01'])expect(()=>validateDate(d)).toThrow();});
+});

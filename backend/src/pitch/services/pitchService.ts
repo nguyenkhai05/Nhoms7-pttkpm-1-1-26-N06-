@@ -12,5 +12,5 @@ export class PitchService {
  const amenities=q.amenities?String(q.amenities).split(',').map(positiveId):[];
  return this.repository.search({type,minPrice,maxPrice,district:String(q.district||'').trim(),amenities});
  }
- detail(id:string|number){const x=this.repository.detail(positiveId(id));if(!x)fail('Không tìm thấy sân',404);return x;}
+ async detail(id:string|number){const x=await this.repository.detail(positiveId(id));if(!x)fail('Không tìm thấy sân',404);return x;}
 }

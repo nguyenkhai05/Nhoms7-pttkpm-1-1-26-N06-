@@ -1,4 +1,5 @@
-import type {DatabaseSync} from 'node:sqlite';
+// SQL schema: database/01_schema.sql. Domain model, not an ORM.
 export class PitchComplexModel {
-  static createTable(db:DatabaseSync) { db.exec(`CREATE TABLE IF NOT EXISTS complexes(id INTEGER PRIMARY KEY,name TEXT NOT NULL,address TEXT NOT NULL,district TEXT NOT NULL,contact TEXT,image TEXT);`); }
+ static readonly table='complexes';
+ id:number;name:string;address:string;district:string;contact:string;image:string;
 }
