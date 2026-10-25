@@ -1,8 +1,28 @@
-import type {Selection,Matrix} from '../types';
-import {useEffect,useState} from 'react';
-import {api} from '../api';
-export default function TimeSlotMatrixGrid({pitchId,onSelect}:{pitchId:number;onSelect:(s:Selection)=>void}){
- const [date,setDate]=useState(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh'}).format(new Date())),[matrix,setMatrix]=useState<Matrix|null>(null),[error,setError]=useState('');
- useEffect(()=>{const controller=new AbortController();setMatrix(null);setError('');const load=()=>api<Matrix>(`/${pitchId}/schedule?date=${date}`,controller.signal).then(x=>{setMatrix(x);setError('');}).catch(e=>{if(e.name!=='AbortError'){setError(e.message);setMatrix(null);}});load();const timer=setInterval(load,3000);return()=>{controller.abort();clearInterval(timer);};},[pitchId,date]);
- return <section><h2>Lịch sân</h2><input aria-label="Ngày đá" type="date" value={date} onChange={e=>setDate(e.target.value)}/><p>Xanh: trống · Vàng: giữ tạm · Đỏ: đã cọc hoặc không khả dụng</p><p role="alert">{error}</p>{!matrix&&!error&&<p>Đang tải lịch…</p>}<div className="slots">{matrix?.slots.map(s=><button className={s.status} key={s.id} disabled={s.status!=='GREEN'} onClick={async()=>{try{const fresh=await api<Matrix>(`/${pitchId}/schedule?date=${date}`);setMatrix(fresh);if(fresh.slots.find(x=>x.id===s.id)?.status!=='GREEN'){setError('Ca này vừa thay đổi, hãy chọn ca khác.');return;}onSelect({pitchId,date,slotId:s.id});}catch(e){setError(e instanceof Error?e.message:'Lỗi tải lịch');}}}>{s.start}–{s.end}<br/>{s.price?.toLocaleString('vi-VN')} đ<br/>{s.status}</button>)}</div>{matrix&&matrix.slots.every(s=>s.status!=='GREEN')&&<p>Ngày này không còn ca trống. Hãy chọn ngày khác hoặc quay lại danh sách sân.</p>}<small>Cập nhật mỗi 3 giây. Trạng thái chỉ có giá trị tại thời điểm tra cứu.</small></section>;
+import type { Selection, Matrix } from '../types';
+import { useEffect, useState } from 'react';
+import { api } from '../api';
+
+export default function TimeSlotMatrixGrid({ pitchId, onSelect }: { pitchId: number; onSelect: (selection: Selection) => void }) {
+  const [date, setDate] = useState(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(Date.now() + 86400000)));
+  const [matrix, setMatrix] = useState<Matrix | null>(null);
+  const [error, setError] = useState('');
+  const [choosing, setChoosing] = useState(false);
+  useEffect(() => {
+    if (!date) { setMatrix(null); return; }
+    const controller = new AbortController(); setMatrix(null); setError('');
+    const load = () => api<Matrix>('/' + pitchId + '/schedule?date=' + encodeURIComponent(date), controller.signal)
+      .then(result => { setMatrix(result); setError(''); })
+      .catch(cause => { if (cause.name !== 'AbortError') { setError(cause instanceof Error ? cause.message : 'Không tải được lịch sân.'); setMatrix(null); } });
+    void load(); const timer = setInterval(load, 3000); return () => { controller.abort(); clearInterval(timer); };
+  }, [pitchId, date]);
+  async function choose(slotId: number) {
+    setChoosing(true); setError('');
+    try {
+      const fresh = await api<Matrix>('/' + pitchId + '/schedule?date=' + encodeURIComponent(date)); setMatrix(fresh);
+      if (fresh.slots.find(slot => slot.id === slotId)?.status !== 'GREEN') { setError('Ca vừa thay đổi, vui lòng chọn ca khác.'); return; }
+      onSelect({ pitchId, date, slotId });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không tải được lịch sân.'); }
+    finally { setChoosing(false); }
+  }
+  return <div><h2>Lịch trống theo ngày</h2><input aria-label="Ngày đá" type="date" value={date} onChange={e => setDate(e.target.value)}/><div className="legend"><span><i className="dot green"/> Xanh · trống</span><span><i className="dot yellow"/> Vàng · giữ tạm</span><span><i className="dot red"/> Đỏ · đã cọc/không khả dụng</span></div>{error && <p role="alert" className="demo-banner">Không tải được lịch: {error}</p>}{!matrix && !error && <p>Đang tải lịch…</p>}<div className="slots">{matrix?.slots.map(slot => <button key={slot.id} className={slot.status} disabled={slot.status !== 'GREEN' || choosing} onClick={() => void choose(slot.id)}>{slot.start} – {slot.end}<br/><b>{slot.price === null ? 'Chưa có giá' : slot.price.toLocaleString('vi-VN') + ' đ'}</b><br/>{slot.status === 'GREEN' ? 'Trống · chọn ca' : slot.status === 'YELLOW' ? 'Đang giữ' : 'Không khả dụng'}</button>)}</div>{matrix && matrix.slots.every(slot => slot.status !== 'GREEN') && <p>Ngày này không còn ca trống. Hãy chọn ngày khác.</p>}<small className="muted">Dữ liệu API làm mới mỗi 3 giây. Chọn ca chưa giữ chỗ và chưa tạo đơn.</small></div>;
 }
