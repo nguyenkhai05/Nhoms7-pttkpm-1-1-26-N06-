@@ -1,0 +1,1 @@
+export async function api<T>(path:string,signal?:AbortSignal):Promise<T>{const r=await fetch('/api/pitches'+path,{signal});const x=await r.json();if(!r.ok)throw new Error(x.error||x.message||'Lỗi API');return x.data as T;}
