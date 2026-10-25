@@ -1,4 +1,4 @@
-import {MysqlDatabase} from '../infrastructure/mysqlDatabase.js';
+import {MysqlDatabase} from '../../database/mysqlDatabase.js';
 import type {Pitch,Amenity,PriceRule,Slot,SearchFilter} from '../types.js';
 export class PitchRepository {
  constructor(private readonly db:MysqlDatabase){}

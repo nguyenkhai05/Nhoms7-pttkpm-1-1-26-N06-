@@ -20,4 +20,4 @@ Mở URL Vite in trong terminal (thường là `http://localhost:5173/`). Dùng 
 | `/#/search` và `/#/detail?id=1` | API UC1.2 thật: tìm kiếm, xem giá, ma trận lịch xanh/vàng/đỏ; chọn ca chỉ chuyển mã sân/ngày/ca sang màn hình đặt sân mẫu. |
 | Trang chủ, đăng nhập, đăng ký, đặt sân, VietQR, quản trị sân, ma trận quản trị, dashboard | Bố cục minh họa. Chưa có API của các issue tương ứng; không tạo tài khoản, đơn đặt sân, giao dịch hoặc QR thật. |
 
-Các trang mẫu khác dùng dữ liệu trong `src/demoData.ts`; dữ liệu này **không được dùng** trong tìm sân và lịch trống UC1.2. Không dán thêm code vào đầu `src/App.tsx` cũ: dùng nguyên file của bản tích hợp khi đưa vào repo.
+Các trang mẫu khác dùng dữ liệu trong `src/mocks/demoData.ts`; dữ liệu này **không được dùng** trong tìm sân và lịch trống UC1.2. Mỗi trang nằm riêng ở `src/pages/`; component và API UC1.2 nằm trong `src/features/pitches/`. Xem bảng sở hữu thư mục ở [CAU_TRUC_PHAN_CONG.md](../CAU_TRUC_PHAN_CONG.md). Không dán thêm code vào đầu `src/App.tsx` cũ: dùng nguyên file của bản tích hợp khi đưa vào repo.
