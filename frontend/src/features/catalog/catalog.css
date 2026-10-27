@@ -11,3 +11,9 @@
 .catalog-error { color: #aa4141; background: #fbe4e4; border-radius: 10px; padding: 11px 14px; font-size: 13px; margin-top: 14px; }
 .outline.danger { color: #aa4141; border-color: #e8b0b1; }
 .outline.danger:hover { background: #fbe4e4; }
+.badge.gray { background: #eceeed; color: #5b6b61; }
+.catalog-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.catalog-fieldset legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+.catalog-checks { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.catalog-form .catalog-checks label { display: flex; align-items: center; gap: 7px; font-weight: 500; }
+.catalog-checks input[type="checkbox"] { width: 16px; height: 16px; padding: 0; accent-color: #2d8a4e; }

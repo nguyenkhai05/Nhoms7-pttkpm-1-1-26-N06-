@@ -12,7 +12,7 @@ interface Loaded {
   error: string;
 }
 
-export default function ComplexManager() {
+export default function ComplexManager({ onChanged }: { onChanged?: () => void }) {
   const { setNotice } = useApp();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   // null: đóng form · "new": thêm mới · Complex: đang sửa cụm đó
@@ -46,6 +46,7 @@ export default function ComplexManager() {
       await catalogApi("/complexes/" + item.id, { method: "DELETE" });
       setNotice(`Đã xóa cụm sân "${item.name}".`);
       setVersion((v) => v + 1);
+      onChanged?.();
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : "Không xóa được cụm sân.");
     }
@@ -124,6 +125,7 @@ export default function ComplexManager() {
             );
             setEditing(null);
             setVersion((v) => v + 1);
+            onChanged?.();
           }}
         />
       )}
