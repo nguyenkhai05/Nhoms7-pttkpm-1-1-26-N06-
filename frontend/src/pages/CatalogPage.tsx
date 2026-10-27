@@ -1,7 +1,7 @@
 import { useApp } from "../lib/AppContext";
 import PageHead from "../components/PageHead";
 import DemoBanner from "../components/DemoBanner";
-import Metric from "../components/Metric";
+import ComplexManager from "../features/catalog/components/ComplexManager";
 import { demoPitches } from "../mocks/demoData";
 import { money } from "../lib/format";
 
@@ -10,20 +10,15 @@ export default function CatalogPage() {
   return (
     <>
       <PageHead
-        tag="QUẢN TRỊ · BẢN MẪU"
+        tag="QUẢN TRỊ"
         title="Danh mục sân & bảng giá"
-        subtitle="Bố cục quản lý sân và cấu hình giá linh hoạt."
+        subtitle="Quản lý cụm sân, sân bóng và cấu hình giá linh hoạt."
       />
+      <ComplexManager />
       <DemoBanner>
-        Dữ liệu bên dưới là minh họa. Thao tác thêm, sửa, xóa cần API quản trị
-        và phân quyền.
+        Hai bảng bên dưới (sân và bảng giá) vẫn là dữ liệu minh họa, sẽ nối API
+        khi phần backend sân và bảng giá hoàn thành.
       </DemoBanner>
-      <div className="metric-grid">
-        <Metric name="Cụm sân" value="02" icon="◎" />
-        <Metric name="Tổng số sân" value="03" icon="⚽" />
-        <Metric name="Sân đang hoạt động" value="02" icon="●" />
-        <Metric name="Quy tắc giá" value="06" icon="▤" />
-      </div>
       <section className="panel">
         <div className="panel-head">
           <div>

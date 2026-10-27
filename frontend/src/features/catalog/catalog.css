@@ -1,0 +1,13 @@
+.catalog-form { margin-top: 18px; padding-top: 18px; border-top: 1px solid #e8eee7; }
+.catalog-form .full-row { grid-column: 1 / -1; }
+.catalog-form textarea {
+  padding: 11px 12px; border: 1px solid #d9e3d9; border-radius: 9px;
+  background: #fff; color: #183c2d; min-width: 0; font: inherit; resize: vertical;
+}
+.catalog-form textarea:focus-visible { outline: 3px solid #d4aa4d; outline-offset: 2px; }
+.catalog-actions { display: flex; gap: 10px; margin-top: 16px; }
+.catalog-row-actions { display: flex; gap: 8px; }
+.catalog-row-actions button { padding: 7px 12px; font-size: 12px; }
+.catalog-error { color: #aa4141; background: #fbe4e4; border-radius: 10px; padding: 11px 14px; font-size: 13px; margin-top: 14px; }
+.outline.danger { color: #aa4141; border-color: #e8b0b1; }
+.outline.danger:hover { background: #fbe4e4; }
