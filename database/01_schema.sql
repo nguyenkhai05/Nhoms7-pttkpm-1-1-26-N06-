@@ -82,7 +82,7 @@ pitchId INT NOT NULL, slotId INT NOT NULL, date DATE NOT NULL, customerId INT,
 guestName VARCHAR(120), guestPhone VARCHAR(30), createdBy INT,
 source ENUM('ONLINE','WALK_IN') NOT NULL DEFAULT 'ONLINE',
 status ENUM('PENDING_DEPOSIT','DEPOSIT_PAID','CHECKED_IN','COMPLETED','CANCELLED','EXPIRED') NOT NULL,
-pitchAmount INT NOT NULL CHECK(pitchAmount>0), depositDue INT NOT NULL CHECK(depositDue>0 AND depositDue<=pitchAmount),
+pitchAmount INT NOT NULL CHECK(pitchAmount>0), depositDue INT NOT NULL, CHECK(depositDue>0 AND depositDue<=pitchAmount),
 expiresAt DATETIME, checkedInAt DATETIME, completedAt DATETIME, createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY(slotId,pitchId) REFERENCES slots(id,pitchId), FOREIGN KEY(customerId) REFERENCES users(id), FOREIGN KEY(createdBy) REFERENCES users(id),
 INDEX(pitchId,date,status), INDEX(customerId,createdAt), INDEX(status,expiresAt)
@@ -122,7 +122,7 @@ FOREIGN KEY(bookingId) REFERENCES bookings(id), FOREIGN KEY(complexId) REFERENCE
 CREATE TABLE service_order_items (
 id INT PRIMARY KEY AUTO_INCREMENT, orderId INT NOT NULL, serviceId INT NOT NULL,
 quantity INT NOT NULL CHECK(quantity>0), unitPrice INT NOT NULL CHECK(unitPrice>=0),
-returnedQuantity INT NOT NULL DEFAULT 0 CHECK(returnedQuantity>=0 AND returnedQuantity<=quantity),
+returnedQuantity INT NOT NULL DEFAULT 0, CHECK(returnedQuantity>=0 AND returnedQuantity<=quantity),
 FOREIGN KEY(orderId) REFERENCES service_orders(id), FOREIGN KEY(serviceId) REFERENCES services(id), UNIQUE(orderId,serviceId)
 ) ENGINE=InnoDB;
 
