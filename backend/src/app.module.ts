@@ -1,4 +1,5 @@
 import {PitchModule} from './pitch/pitch.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
 import { Module } from '@nestjs/common';
 import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller.js';
@@ -11,6 +12,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
   imports: [
     AuthModule,
     PitchModule,
+    CatalogModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
     ...(process.env.OBSERVE_APP_KEY && process.env.OBSERVE_APP_SECRET ? [ObserveModule.forRoot({
