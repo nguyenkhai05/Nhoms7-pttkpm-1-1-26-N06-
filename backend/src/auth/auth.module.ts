@@ -4,18 +4,15 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { AuthRepository } from './auth.repository.js';
 import { DatabaseModule } from '../database/database.module.js';
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { PermissionsGuard } from './guards/permissions.guard.js';
+
+const jwtSecret = process.env.JWT_SECRET ?? '';
 
 @Module({
-  imports: [
-    DatabaseModule,
-    JwtModule.register({
-      global: true,
-      secret: process.env.JWT_SECRET || 'FOOTBALL_PITCH_SECRET_KEY_2026',
-      signOptions: { expiresIn: '1d' },
-    }),
-  ],
+  imports: [DatabaseModule, JwtModule.register({ global: true, secret: jwtSecret, signOptions: { expiresIn: '1d' } })],
   controllers: [AuthController],
-  providers: [AuthService, AuthRepository],
-  exports: [AuthService],
+  providers: [AuthService, AuthRepository, JwtAuthGuard, PermissionsGuard],
+  exports: [AuthService, AuthRepository, JwtModule, JwtAuthGuard, PermissionsGuard],
 })
 export class AuthModule {}

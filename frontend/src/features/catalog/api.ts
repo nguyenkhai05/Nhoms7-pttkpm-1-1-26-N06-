@@ -11,9 +11,13 @@ export async function catalogApi<T>(
 ): Promise<T> {
   let response: Response;
   try {
+    const token = localStorage.getItem("accessToken");
+    const headers: Record<string, string> = {};
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (token) headers.Authorization = `Bearer ${token}`;
     response = await fetch("/api/catalog" + path, {
       method,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: Object.keys(headers).length ? headers : undefined,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     });

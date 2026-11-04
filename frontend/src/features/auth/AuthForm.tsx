@@ -2,6 +2,10 @@ import { useState } from "react";
 import axios from "axios";
 import { useApp } from "../../lib/AppContext";
 
+// Khôi phục header xác thực sau khi tải lại trang.
+const savedToken = localStorage.getItem("accessToken");
+if (savedToken) axios.defaults.headers.common.Authorization = `Bearer ${savedToken}`;
+
 export default function AuthForm({ mode: page }: { mode: "login" | "register" }) {
   const { navigate, setNotice } = useApp();
 
@@ -18,7 +22,6 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
     try {
       if (page === "register") {
         await axios.post("http://localhost:3000/api/auth/register", {
-          username: email, // Backend bắt buộc username
           email,
           fullName,
           password,
@@ -29,18 +32,20 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
         navigate("login");
       } else {
         const response = await axios.post("http://localhost:3000/api/auth/login", {
-          username: email, // Backend LoginDto nhận username
+          identifier: email,
           password,
         });
 
-        const { accessToken, user } = response.data;
+        const { accessToken, user } = response.data.data;
         if (accessToken) {
           localStorage.setItem("accessToken", accessToken);
+          axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
         }
         if (user) {
           localStorage.setItem("user", JSON.stringify(user));
         }
 
+        window.dispatchEvent(new Event("auth-changed"));
         setNotice("Đăng nhập thành công!");
         navigate("home");
       }
@@ -88,12 +93,12 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
             </label>
           )}
           <label>
-            Email
+            {page === "login" ? "Email hoặc số điện thoại" : "Email"}
             <input
               required
-              type="email"
-              autoComplete="email"
-              placeholder="ban@example.com"
+              type={page === "login" ? "text" : "email"}
+              autoComplete={page === "login" ? "username" : "email"}
+              placeholder={page === "login" ? "ban@example.com hoặc 090..." : "ban@example.com"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -116,11 +121,11 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
             <input
               required
               type="password"
-              minLength={6}
+              minLength={8}
               autoComplete={
                 page === "login" ? "current-password" : "new-password"
               }
-              placeholder="Ít nhất 6 ký tự"
+              placeholder="Ít nhất 8 ký tự"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

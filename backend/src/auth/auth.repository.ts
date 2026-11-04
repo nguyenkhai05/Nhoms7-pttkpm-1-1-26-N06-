@@ -1,53 +1,88 @@
 import { Injectable } from '@nestjs/common';
-import type { ResultSetHeader } from 'mysql2/promise';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { MysqlDatabase } from '../database/mysqlDatabase.js';
 import { RegisterDto } from './dto/auth.dto.js';
 
-// Cập nhật lại interface cho khớp với file schema.sql
 export interface UserEntity {
   id: number;
   email: string;
   passwordHash: string;
   fullName: string;
   phone: string | null;
-  status: string;
+  status: 'ACTIVE' | 'LOCKED';
   createdAt: Date;
+}
+
+export interface UserAccess {
+  roles: string[];
+  permissions: string[];
 }
 
 @Injectable()
 export class AuthRepository {
   constructor(private readonly db: MysqlDatabase) {}
 
-  async findByUsername(username: string): Promise<UserEntity | null> {
-    const sql = `SELECT * FROM users WHERE email = ? LIMIT 1`;
-    const rows = await this.db.rows<UserEntity>(sql, [username]);
-    return rows && rows.length > 0 ? rows[0] : null;
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    const rows = await this.db.rows<UserEntity>(
+      'SELECT id, email, passwordHash, fullName, phone, status, createdAt FROM users WHERE email = ? LIMIT 1',
+      [email.trim().toLowerCase()],
+    );
+    return rows[0] ?? null;
   }
 
-  async findByEmail(email: string): Promise<UserEntity | null> {
-    const sql = `SELECT * FROM users WHERE email = ? LIMIT 1`;
-    const rows = await this.db.rows<UserEntity>(sql, [email]);
-    return rows && rows.length > 0 ? rows[0] : null;
+  async findByUserId(userId: number): Promise<UserEntity | null> {
+    const rows = await this.db.rows<UserEntity>(
+      'SELECT id, email, passwordHash, fullName, phone, status, createdAt FROM users WHERE id = ? LIMIT 1',
+      [userId],
+    );
+    return rows[0] ?? null;
   }
 
   async findByIdentifier(identifier: string): Promise<UserEntity | null> {
-    const sql = `SELECT * FROM users WHERE email = ? LIMIT 1`;
-    const rows = await this.db.rows<UserEntity>(sql, [identifier]);
-    return rows && rows.length > 0 ? rows[0] : null;
+    const value = identifier.trim();
+    const rows = await this.db.rows<UserEntity>(
+      'SELECT id, email, passwordHash, fullName, phone, status, createdAt FROM users WHERE email = ? OR phone = ? LIMIT 1',
+      [value.toLowerCase(), value],
+    );
+    return rows[0] ?? null;
   }
 
-  async createUser(dto: RegisterDto, passwordHash: string): Promise<number> {
-    // Đã thay thế password -> passwordHash, full_name -> fullName và bỏ cột role
-    const sql = `
-      INSERT INTO users (email, passwordHash, fullName, phone)
-      VALUES (?, ?, ?, ?)
-    `;
-    const [result] = await this.db.pool.execute<ResultSetHeader>(sql, [
-      dto.email.trim().toLowerCase(),
-      passwordHash,
-      dto.fullName.trim(),
-      dto.phone ? dto.phone.trim() : null,
-    ]);
-    return result.insertId;
+  async getUserAccess(userId: number): Promise<UserAccess> {
+    const rows = await this.db.rows<RowDataPacket & { roleCode: string; permissionCode: string | null }>(
+      `SELECT r.code AS roleCode, p.code AS permissionCode
+       FROM user_roles ur
+       JOIN roles r ON r.id = ur.roleId
+       LEFT JOIN role_permissions rp ON rp.roleId = r.id
+       LEFT JOIN permissions p ON p.id = rp.permissionId
+       WHERE ur.userId = ?`,
+      [userId],
+    );
+    return {
+      roles: [...new Set(rows.map((row) => row.roleCode))],
+      permissions: [...new Set(rows.map((row) => row.permissionCode).filter((code): code is string => Boolean(code)))],
+    };
+  }
+
+  async createCustomer(dto: RegisterDto, passwordHash: string): Promise<number> {
+    const connection = await this.db.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.execute<ResultSetHeader>(
+        `INSERT INTO users (email, passwordHash, fullName, phone) VALUES (?, ?, ?, ?)`,
+        [dto.email.trim().toLowerCase(), passwordHash, dto.fullName.trim(), dto.phone?.trim() || null],
+      );
+      const [roleRows] = await connection.execute<RowDataPacket[]>(
+        "SELECT id FROM roles WHERE code = 'CUSTOMER' LIMIT 1",
+      );
+      if (!roleRows.length) throw new Error("Không tìm thấy vai trò CUSTOMER trong bảng roles. Hãy chạy database/03_seed.sql.");
+      await connection.execute('INSERT INTO user_roles (userId, roleId) VALUES (?, ?)', [result.insertId, roleRows[0].id]);
+      await connection.commit();
+      return result.insertId;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 }

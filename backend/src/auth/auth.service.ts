@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { AuthRepository } from './auth.repository.js';
@@ -12,70 +12,56 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    if (!dto.username || !dto.password || !dto.email) {
-      throw new BadRequestException('Vui lòng điền đầy đủ thông tin bắt buộc');
+    const email = dto.email?.trim().toLowerCase();
+    const fullName = dto.fullName?.trim();
+    const phone = dto.phone?.trim();
+    if (!email || !fullName || !dto.password || !phone) {
+      throw new BadRequestException('Vui lòng nhập họ tên, email, số điện thoại và mật khẩu.');
     }
+    if (dto.password.length < 8) throw new BadRequestException('Mật khẩu phải có ít nhất 8 ký tự.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException('Email không hợp lệ.');
+    if (!/^[0-9+().\s-]{8,20}$/.test(phone)) throw new BadRequestException('Số điện thoại không hợp lệ.');
+    if (await this.authRepository.findByEmail(email)) throw new ConflictException('Email này đã được đăng ký.');
 
-    const isUsernameExists = await this.authRepository.findByUsername(dto.username);
-    if (isUsernameExists) {
-      throw new ConflictException('Tên đăng nhập đã được sử dụng');
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    try {
+      const userId = await this.authRepository.createCustomer({ ...dto, email, fullName, phone }, passwordHash);
+      return { statusCode: 201, message: 'Đăng ký tài khoản thành công.', data: { userId, role: 'CUSTOMER' } };
+    } catch (error) {
+      // Unique email constraint also protects against two registrations racing.
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_DUP_ENTRY') {
+        throw new ConflictException('Email hoặc thông tin định danh đã được sử dụng.');
+      }
+      throw error;
     }
-
-    const isEmailExists = await this.authRepository.findByEmail(dto.email);
-    if (isEmailExists) {
-      throw new ConflictException('Email này đã được đăng ký');
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(dto.password, salt);
-
-    const userId = await this.authRepository.createUser(dto, passwordHash);
-
-    return {
-      statusCode: 201,
-      message: 'Đăng ký tài khoản thành công',
-      data: { userId },
-    };
   }
 
   async login(dto: LoginDto) {
-    if (!dto.username || !dto.password) {
-      throw new BadRequestException('Vui lòng nhập tài khoản và mật khẩu');
+    const identifier = (dto.identifier ?? dto.username ?? '').trim();
+    if (!identifier || !dto.password) throw new BadRequestException('Vui lòng nhập email/số điện thoại và mật khẩu.');
+    const user = await this.authRepository.findByIdentifier(identifier);
+    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      throw new UnauthorizedException('Tài khoản hoặc mật khẩu không chính xác.');
     }
+    if (user.status !== 'ACTIVE') throw new ForbiddenException('Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
 
-    const user = await this.authRepository.findByIdentifier(dto.username);
-    if (!user) {
-      throw new UnauthorizedException('Tài khoản hoặc mật khẩu không chính xác');
-    }
-
-    // Đã thay user.password bằng user.passwordHash
-    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isMatch) {
-      throw new UnauthorizedException('Tài khoản hoặc mật khẩu không chính xác');
-    }
-
-    const payload = {
-      sub: user.id,
-      // Dùng email làm username trong token do bảng không có cột username
-      username: user.email, 
-      // Gán mặc định role cho frontend
-      role: 'CUSTOMER', 
-    };
-
-    const accessToken = await this.jwtService.signAsync(payload);
-
+    const access = await this.authRepository.getUserAccess(user.id);
+    if (!access.roles.length) throw new ForbiddenException('Tài khoản chưa được cấp vai trò.');
+    const accessToken = await this.jwtService.signAsync({ sub: user.id });
     return {
       statusCode: 200,
-      message: 'Đăng nhập thành công',
+      message: 'Đăng nhập thành công.',
       data: {
         accessToken,
-        user: {
-          id: user.id,
-          username: user.email,       // Sửa user.username -> user.email
-          fullName: user.fullName,   // Sửa user.full_name -> user.fullName
-          role: 'CUSTOMER',          // Gán mặc định role
-        },
+        user: { id: user.id, email: user.email, fullName: user.fullName, phone: user.phone, roles: access.roles, permissions: access.permissions },
       },
     };
+  }
+
+  async me(userId: number) {
+    const user = await this.authRepository.findByUserId(userId);
+    if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException('Phiên đăng nhập không còn hợp lệ.');
+    const access = await this.authRepository.getUserAccess(user.id);
+    return { statusCode: 200, data: { id: user.id, email: user.email, fullName: user.fullName, phone: user.phone, roles: access.roles, permissions: access.permissions } };
   }
 }

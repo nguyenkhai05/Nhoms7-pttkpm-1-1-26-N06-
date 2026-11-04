@@ -1,5 +1,4 @@
 export class RegisterDto {
-  username!: string;
   email!: string;
   password!: string;
   fullName!: string;
@@ -7,6 +6,8 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  username!: string;
+  /** Tương thích với client cũ dùng username; client mới nên gửi identifier. */
+  identifier?: string;
+  username?: string;
   password!: string;
 }
