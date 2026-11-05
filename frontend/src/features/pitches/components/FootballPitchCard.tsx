@@ -19,7 +19,11 @@ export default function FootballPitchCard({
         {pitch.complexName} · {pitch.district}
       </p>
       <p>{pitch.amenities.map((x) => x.name).join(" · ")}</p>
-      <b>Từ {pitch.startingPrice.toLocaleString("vi-VN")} đ/ca</b>
+      <b>
+        {pitch.startingPrice == null
+          ? "Chưa có bảng giá"
+          : `Từ ${pitch.startingPrice.toLocaleString("vi-VN")} đ/ca`}
+      </b>
       <p>
         <button onClick={() => onOpen(pitch.id)}>Chi tiết và lịch trống</button>
       </p>
