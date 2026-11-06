@@ -26,9 +26,9 @@ INSERT INTO services(id,name,kind,unit,price) VALUES(1,'Nước khoáng','SALE',
 INSERT INTO inventory VALUES(1,1,100,0,10),(1,2,10,0,2),(1,3,20,0,3);
 INSERT INTO stock_movements(complexId,serviceId,delta,kind,unitCost,note) VALUES(1,1,100,'RECEIPT',5000,'Tồn đầu kỳ'),(1,2,10,'RECEIPT',200000,'Tồn đầu kỳ'),(1,3,20,'RECEIPT',100000,'Tồn đầu kỳ');
 SET @demoDate=DATE(UTC_TIMESTAMP()+INTERVAL 7 HOUR)+INTERVAL 1 DAY;
-CALL sp_hold_slot(1,3,@demoDate,2,'DEMO-PAID');
+CALL sp_hold_slot(1,3,@demoDate,2,'DEMO-PAID',JSON_ARRAY());
 SET @paidBooking=(SELECT id FROM bookings WHERE code='DEMO-PAID');
 SET @deposit=(SELECT depositDue FROM bookings WHERE id=@paidBooking);
 CALL sp_confirm_deposit(@paidBooking,'DEMO','DEMO-DEPOSIT-001',@deposit);
-CALL sp_hold_slot(1,4,@demoDate,2,'DEMO-HELD');
+CALL sp_hold_slot(1,4,@demoDate,2,'DEMO-HELD',JSON_ARRAY());
 SELECT @demoDate AS demoDate,'Xem ngày này để thấy ca đỏ và vàng (vàng hết hạn sau 15 phút)' AS note;

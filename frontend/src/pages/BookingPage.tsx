@@ -1,148 +1,187 @@
-import { useApp } from "../lib/AppContext";
-import PageHead from "../components/PageHead";
-import DemoBanner from "../components/DemoBanner";
-import { demoPitches } from "../mocks/demoData";
-import { money } from "../lib/format";
+import { useEffect, useMemo, useState } from 'react';
+import { useApp } from '../lib/AppContext';
+import PageHead from '../components/PageHead';
+import { money } from '../lib/format';
+import {
+  createBookingHold,
+  getBookingServices,
+  type BookingService,
+} from '../features/bookings/api';
 
 export default function BookingPage() {
-  const {
-    pitchId,
-    setPitchId,
-    date,
-    setDate,
-    selection,
-    setSelection,
-    services,
-    toggleService,
-    selectedPitch,
-    serviceTotal,
-    navigate,
-  } = useApp();
+  const { selection, selectedPitch, setBooking, navigate } = useApp();
+  const [availableServices, setAvailableServices] = useState<BookingService[]>([]);
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!selection) return;
+    let active = true;
+    setLoadingServices(true);
+    setError('');
+    getBookingServices(selection.pitchId)
+      .then((items) => {
+        if (active) setAvailableServices(items);
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setAvailableServices([]);
+          setError(cause instanceof Error ? cause.message : 'Không tải được danh sách dịch vụ.');
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingServices(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selection]);
+
+  const selectedServices = useMemo(
+    () => availableServices
+      .filter((item) => (quantities[item.id] ?? 0) > 0)
+      .map((item) => ({ serviceId: item.id, quantity: quantities[item.id] ?? 0 })),
+    [availableServices, quantities],
+  );
+
+  const serviceTotal = useMemo(
+    () => availableServices.reduce(
+      (total, item) => total + item.price * (quantities[item.id] ?? 0),
+      0,
+    ),
+    [availableServices, quantities],
+  );
+
+  async function submitBooking() {
+    if (!selection) {
+      setError('Bạn cần chọn một khung giờ từ trang lịch sân trước.');
+      return;
+    }
+    if (!localStorage.getItem('accessToken')) {
+      setError('Bạn cần đăng nhập bằng tài khoản khách hàng trước khi đặt sân.');
+      navigate('login');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      const booking = await createBookingHold({
+        pitchId: selection.pitchId,
+        slotId: selection.slotId,
+        date: selection.date,
+        services: selectedServices,
+      });
+      setBooking(booking);
+      navigate('payment');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Không thể giữ khung giờ.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!selection) {
+    return (
+      <>
+        <PageHead
+          tag="ĐẶT SÂN & DỊCH VỤ"
+          title="Bạn chưa chọn khung giờ"
+          subtitle="Hãy chọn một slot màu xanh trên lịch sân trước khi tạo Booking."
+        />
+        <section className="panel">
+          <p>Hệ thống chưa nhận được lựa chọn sân và khung giờ.</p>
+          <button className="primary" onClick={() => navigate('search')}>Tìm sân và xem lịch trống</button>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHead
         tag="ĐẶT SÂN & DỊCH VỤ"
-        title="Hoàn tất lựa chọn"
-        subtitle="Bố cục minh họa, chưa tạo đơn đặt sân hoặc khóa khung giờ."
+        title="Xác nhận thông tin đặt sân"
+        subtitle="Hệ thống chỉ giữ slot khi bạn xác nhận. Thời gian giữ chỗ là 15 phút."
       />
-      <DemoBanner>
-        Giao diện mẫu: nút tiếp tục chỉ mở màn hình thanh toán minh họa. Chưa có
-        API đặt sân.
-      </DemoBanner>
+      {error && <div className="demo-banner" role="alert">{error}</div>}
       <div className="two-columns">
         <div className="stack">
           <section className="panel">
             <h2>01 · Thông tin trận đấu</h2>
-            <div className="form-grid">
-              <label>
-                Sân bóng
-                <select
-                  value={pitchId}
-                  onChange={(e) => {
-                    setPitchId(Number(e.target.value));
-                    setSelection(null);
-                  }}
-                >
-                  {demoPitches.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · {p.type} người
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Ngày đá
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => {
-                    setDate(e.target.value);
-                    setSelection(null);
-                  }}
-                />
-              </label>
-              <label>
-                Khung giờ
-                <select
-                  value={selection?.slotId ?? ""}
-                  onChange={(e) =>
-                    setSelection(
-                      e.target.value
-                        ? { pitchId, date, slotId: Number(e.target.value) }
-                        : null,
-                    )
-                  }
-                >
-                  <option value="">Chọn ca trong trang chi tiết sân</option>
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      Ca {n} · minh họa
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Số điện thoại
-                <input
-                  placeholder="Nhập số điện thoại (không gửi đi)"
-                  inputMode="tel"
-                />
-              </label>
+            <div className="order-field"><span>Sân bóng</span><b>{selectedPitch.name}</b></div>
+            <div className="order-field"><span>Cụm sân</span><b>{selectedPitch.complexName}</b></div>
+            <div className="order-field"><span>Địa chỉ</span><b>{selectedPitch.address}</b></div>
+            <div className="order-field"><span>Ngày đá</span><b>{selection.date}</b></div>
+            <div className="order-field">
+              <span>Khung giờ</span>
+              <b>{selection.start && selection.end ? `${selection.start} – ${selection.end}` : `Mã slot ${selection.slotId}`}</b>
             </div>
-            <button className="text-button" onClick={() => navigate("search")}>
-              Xem lịch trống thật →
+            <button className="text-button" onClick={() => navigate('detail', selection.pitchId)}>
+              ← Chọn lại khung giờ
             </button>
           </section>
+
           <section className="panel">
             <h2>02 · Dịch vụ đi kèm</h2>
-            <p className="muted">Giá chỉ để minh họa giao diện.</p>
+            <p className="muted">Giá và tồn kho được lấy từ database. Số lượng sẽ được giữ cùng giao dịch đặt sân.</p>
+            {loadingServices && <p>Đang tải dịch vụ…</p>}
+            {!loadingServices && availableServices.length === 0 && (
+              <p className="muted">Cụm sân chưa có dịch vụ khả dụng. Bạn vẫn có thể đặt sân mà không chọn dịch vụ.</p>
+            )}
             <div className="service-grid">
-              {["Nước uống", "Áo tập", "Thuê bóng"].map((s) => (
-                <label className="service" key={s}>
-                  <input
-                    type="checkbox"
-                    checked={services.includes(s)}
-                    onChange={() => toggleService(s)}
-                  />
-                  <span>
-                    <b>{s}</b>
-                    <small>50.000 đ</small>
-                  </span>
-                </label>
-              ))}
+              {availableServices.map((item) => {
+                const quantity = quantities[item.id] ?? 0;
+                const soldOut = item.availableQuantity <= 0;
+                return (
+                  <label className="service" key={item.id}>
+                    <span>
+                      <b>{item.name}</b>
+                      <small>{money(item.price)} / {item.unit}</small>
+                      <small>Còn khả dụng: {item.availableQuantity}</small>
+                    </span>
+                    <input
+                      aria-label={`Số lượng ${item.name}`}
+                      type="number"
+                      min={0}
+                      max={Math.min(item.availableQuantity, 100)}
+                      value={quantity}
+                      disabled={soldOut}
+                      onChange={(event) => {
+                        const next = Math.max(0, Math.min(item.availableQuantity, 100, Math.floor(Number(event.target.value) || 0)));
+                        setQuantities((current) => ({ ...current, [item.id]: next }));
+                      }}
+                    />
+                  </label>
+                );
+              })}
             </div>
           </section>
         </div>
+
         <section className="panel order-card">
-          <h2>Tóm tắt lựa chọn</h2>
+          <h2>03 · Tóm tắt đơn</h2>
+          <div className="order-field"><span>Sân</span><b>{selectedPitch.name}</b></div>
+          <div className="order-field"><span>Ngày</span><b>{selection.date}</b></div>
           <div className="order-field">
-            <span>Sân</span>
-            <b>{selectedPitch.name}</b>
+            <span>Khung giờ</span>
+            <b>{selection.start && selection.end ? `${selection.start} – ${selection.end}` : `#${selection.slotId}`}</b>
           </div>
           <div className="order-field">
-            <span>Ngày</span>
-            <b>{date || "Chưa chọn"}</b>
+            <span>Tiền sân</span>
+            <b>{selection.price == null ? 'Sẽ được kiểm tra lại' : money(selection.price)}</b>
           </div>
-          <div className="order-field">
-            <span>Mã ca</span>
-            <b>{selection?.slotId ?? "Chưa chọn"}</b>
-          </div>
-          <div className="order-field">
-            <span>Giá sân tham khảo</span>
-            <b>{money(selectedPitch.startingPrice)}</b>
-          </div>
-          <div className="order-field">
-            <span>Dịch vụ minh họa</span>
-            <b>{money(serviceTotal)}</b>
-          </div>
+          <div className="order-field"><span>Dịch vụ</span><b>{money(serviceTotal)}</b></div>
           <div className="order-total">
-            <span>Tổng tham khảo</span>
-            <strong>{money(selectedPitch.startingPrice + serviceTotal)}</strong>
+            <span>Tạm tính</span>
+            <strong>{selection.price == null ? '—' : money(selection.price + serviceTotal)}</strong>
           </div>
-          <button className="primary full" onClick={() => navigate("payment")}>
-            Xem giao diện thanh toán →
+          <p className="muted">Tiền cọc được backend tính theo tỷ lệ cấu hình trong bảng giá, không lấy số tiền do trình duyệt tự gửi.</p>
+          <button className="primary full" disabled={submitting || loadingServices || selection.price == null} onClick={() => void submitBooking()}>
+            {submitting ? 'Đang giữ slot…' : 'Xác nhận đặt sân & giữ slot 15 phút'}
           </button>
-          <small>Giá thực tế phụ thuộc ca đá và loại ngày.</small>
+          <small>MySQL sẽ kiểm tra lại slot và tồn kho trong transaction trước khi tạo Booking.</small>
         </section>
       </div>
     </>

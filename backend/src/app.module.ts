@@ -1,3 +1,4 @@
+import { BookingsModule } from './bookings/bookings.module.js';
 import {PitchModule} from './pitch/pitch.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { Module } from '@nestjs/common';
@@ -11,6 +12,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
 @Module({
   imports: [
     AuthModule,
+    BookingsModule,
     PitchModule,
     CatalogModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error

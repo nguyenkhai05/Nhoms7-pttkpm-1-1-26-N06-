@@ -63,7 +63,19 @@ export default function TimeSlotMatrixGrid({
         setError("Ca vừa thay đổi, vui lòng chọn ca khác.");
         return;
       }
-      onSelect({ pitchId, date, slotId });
+      const selectedSlot = fresh.slots.find((slot) => slot.id === slotId);
+      if (!selectedSlot) {
+        setError("Không tìm thấy khung giờ vừa chọn.");
+        return;
+      }
+      onSelect({
+        pitchId,
+        date,
+        slotId,
+        start: selectedSlot.start,
+        end: selectedSlot.end,
+        price: selectedSlot.price,
+      });
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Không tải được lịch sân.",
@@ -126,7 +138,7 @@ export default function TimeSlotMatrixGrid({
         <p>Ngày này không còn ca trống. Hãy chọn ngày khác.</p>
       )}
       <small className="muted">
-        Dữ liệu API làm mới mỗi 3 giây. Chọn ca chưa giữ chỗ và chưa tạo đơn.
+        Dữ liệu API làm mới mỗi 3 giây. Chọn ca chỉ ghi nhận lựa chọn; hệ thống sẽ giữ slot khi bạn xác nhận đặt sân.
       </small>
     </div>
   );

@@ -7,6 +7,24 @@ import {
 import type { Pitch, Selection } from "../features/pitches/types";
 import type { Page } from "./routes";
 
+export interface CurrentBooking {
+  id: number;
+  code: string;
+  pitchId: number;
+  pitchName: string;
+  slotId: number;
+  slotStart: string;
+  slotEnd: string;
+  date: string;
+  status: string;
+  pitchAmount: number;
+  serviceAmount: number;
+  totalAmount: number;
+  depositDue: number;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
 export interface AppState {
   page: Page;
   navigate: (page: Page, id?: number) => void;
@@ -22,9 +40,8 @@ export interface AppState {
   selectedPitch: Pitch;
   date: string;
   setDate: Dispatch<SetStateAction<string>>;
-  services: string[];
-  serviceTotal: number;
-  toggleService: (name: string) => void;
+  booking: CurrentBooking | null;
+  setBooking: (booking: CurrentBooking | null) => void;
   notice: string;
   setNotice: Dispatch<SetStateAction<string>>;
 }

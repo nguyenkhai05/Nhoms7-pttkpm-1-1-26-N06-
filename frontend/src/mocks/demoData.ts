@@ -3,6 +3,7 @@ import type { Matrix, Pitch } from "../features/pitches/types";
 export const demoPitches: Pitch[] = [
   {
     id: 1,
+    complexId: 1,
     name: "Sân A1",
     type: 7,
     complexName: "Cụm sân Sao Mai",
@@ -43,6 +44,7 @@ export const demoPitches: Pitch[] = [
   },
   {
     id: 2,
+    complexId: 1,
     name: "Sân B2",
     type: 5,
     complexName: "Cụm sân Sao Mai",
@@ -75,6 +77,7 @@ export const demoPitches: Pitch[] = [
   },
   {
     id: 3,
+    complexId: 2,
     name: "Sân C3",
     type: 11,
     complexName: "Cụm sân Bình Minh",

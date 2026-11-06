@@ -11,6 +11,7 @@ export interface PriceRule {
 }
 export interface Pitch {
   id: number;
+  complexId: number;
   name: string;
   type: number;
   complexName: string;
@@ -27,6 +28,9 @@ export interface Selection {
   pitchId: number;
   date: string;
   slotId: number;
+  start?: string;
+  end?: string;
+  price?: number | null;
 }
 export interface Slot {
   id: number;
