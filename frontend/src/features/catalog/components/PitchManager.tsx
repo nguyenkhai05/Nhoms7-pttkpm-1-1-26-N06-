@@ -27,7 +27,7 @@ const BADGE: Record<PitchStatus, string> = {
 };
 
 /** refreshKey đổi khi cụm sân thay đổi, để danh sách cụm trong biểu mẫu luôn mới. */
-export default function PitchManager({ refreshKey }: { refreshKey: number }) {
+export default function PitchManager({ refreshKey, onChanged }: { refreshKey: number; onChanged?: () => void }) {
   const { setNotice } = useApp();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   // null: đóng form · "new": thêm mới · CatalogPitch: đang sửa sân đó
@@ -82,6 +82,7 @@ export default function PitchManager({ refreshKey }: { refreshKey: number }) {
       await catalogApi("/pitches/" + pitch.id, { method: "DELETE" });
       setNotice(`Đã xóa sân "${pitch.name}".`);
       setVersion((v) => v + 1);
+      onChanged?.();
     } catch (cause) {
       setNotice(cause instanceof Error ? cause.message : "Không xóa được sân.");
     }
@@ -174,6 +175,7 @@ export default function PitchManager({ refreshKey }: { refreshKey: number }) {
             );
             setEditing(null);
             setVersion((v) => v + 1);
+            onChanged?.();
           }}
         />
       )}

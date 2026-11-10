@@ -6,11 +6,14 @@ import { CatalogPitchService } from './catalog-pitch.service.js';
 import { CatalogController } from './catalog.controller.js';
 import { CatalogRepository } from './catalog.repository.js';
 import { CatalogService } from './catalog.service.js';
+import { CatalogPriceRepository } from './catalog-price.repository.js';
+import { CatalogPriceService } from './catalog-price.service.js';
+import { CatalogPriceController } from './catalog-price.controller.js';
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [CatalogController, CatalogPitchController],
-  providers: [CatalogRepository, CatalogService, CatalogPitchRepository, CatalogPitchService],
-  exports: [CatalogService, CatalogPitchService],
+  controllers: [CatalogController, CatalogPitchController, CatalogPriceController],
+  providers: [CatalogRepository, CatalogService, CatalogPitchRepository, CatalogPitchService, CatalogPriceRepository, CatalogPriceService],
+  exports: [CatalogService, CatalogPitchService, CatalogPriceService],
 })
 export class CatalogModule {}

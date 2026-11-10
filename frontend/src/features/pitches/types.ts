@@ -22,7 +22,7 @@ export interface Pitch {
   image: string;
   amenities: Amenity[];
   prices: PriceRule[];
-  startingPrice: number;
+  startingPrice: number | null;
 }
 export interface Selection {
   pitchId: number;

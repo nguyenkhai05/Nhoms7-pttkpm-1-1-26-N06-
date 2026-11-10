@@ -37,3 +37,15 @@ export interface CatalogPitch {
   image: string | null;
   amenityIds: number[];
 }
+export type PriceDayType = "WEEKDAY" | "WEEKEND" | "HOLIDAY";
+export interface CatalogPrice {
+  id: number;
+  pitchId: number;
+  pitchName: string;
+  complexName: string;
+  dayType: PriceDayType;
+  start: string;
+  end: string;
+  amount: number;
+  depositPercent: number;
+}
