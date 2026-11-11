@@ -59,7 +59,7 @@ export class CatalogPriceRepository {
     const selected = columns.filter((column) => dto[column] !== undefined);
     await this.db.pool.execute(
       `UPDATE prices SET ${selected.map((column) => `\`${column}\`=?`).join(',')} WHERE id=?`,
-      [...selected.map((column) => dto[column]), id],
+      [...selected.map((column) => dto[column] as number | string), id],
     );
   }
 
