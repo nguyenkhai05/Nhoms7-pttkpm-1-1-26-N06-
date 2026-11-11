@@ -11,6 +11,8 @@ import AdminSchedulePage from "./pages/AdminSchedulePage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import UserManagementPage from "./pages/UserManagementPage";
+import AuditLogPage from "./pages/AuditLogPage";
 import "./styles/app.css";
 
 function CurrentPage() {
@@ -24,6 +26,8 @@ function CurrentPage() {
     catalog: CatalogPage,
     schedule: AdminSchedulePage,
     dashboard: DashboardPage,
+    users: UserManagementPage,
+    audit: AuditLogPage,
     login: LoginPage,
     register: RegisterPage,
   };

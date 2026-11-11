@@ -7,6 +7,8 @@ export type Page =
   | "catalog"
   | "schedule"
   | "dashboard"
+  | "users"
+  | "audit"
   | "login"
   | "register";
 
@@ -19,6 +21,8 @@ export const titles: Record<Page, string> = {
   catalog: "Danh mục sân & bảng giá",
   schedule: "Ma trận lịch sân",
   dashboard: "Báo cáo tổng quan",
+  users: "Tài khoản nhân sự",
+  audit: "Nhật ký thao tác",
   login: "Đăng nhập",
   register: "Đăng ký",
 };
@@ -31,6 +35,8 @@ export const links: { page: Page; label: string; icon: string }[] = [
   { page: "catalog", label: "Danh mục & bảng giá", icon: "▦" },
   { page: "schedule", label: "Ma trận lịch sân", icon: "▦" },
   { page: "dashboard", label: "Báo cáo tổng quan", icon: "◫" },
+  { page: "users", label: "Tài khoản nhân sự", icon: "♙" },
+  { page: "audit", label: "Nhật ký thao tác", icon: "▤" },
 ];
 
 export function currentPage(): Page {

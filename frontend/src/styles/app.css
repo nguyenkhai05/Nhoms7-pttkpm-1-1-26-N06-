@@ -1286,3 +1286,12 @@ a {
   border-radius: 8px;
   background: #fff;
 }
+.admin-filter { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin-bottom:1.25rem; }
+.admin-filter label { display:flex; flex-direction:column; gap:.35rem; font-weight:600; min-width:150px; flex:1; }
+.admin-filter input,.admin-filter select,.admin-table select { width:100%; padding:.6rem; border:1px solid #d1d5db; border-radius:.5rem; color:inherit; background:#fff; }
+.admin-filter button { align-self:end; }
+.admin-table { width:100%; border-collapse:collapse; }
+.admin-table th,.admin-table td { padding:.75rem; text-align:left; border-bottom:1px solid #e5e7eb; vertical-align:middle; }
+.admin-table pre { max-width:400px; max-height:220px; overflow:auto; white-space:pre-wrap; }
+.admin-chart { height:190px; overflow-x:auto; align-items:end; gap:.35rem; padding-top:1rem; }
+.admin-chart > div { min-width:34px; }
