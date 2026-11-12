@@ -31,6 +31,7 @@ export interface Selection {
   start?: string;
   end?: string;
   price?: number | null;
+  pitch?: Pick<Pitch, "name" | "complexName" | "address">;
 }
 export interface Slot {
   id: number;

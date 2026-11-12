@@ -5,7 +5,6 @@ import { today } from './format';
 import { api } from '../features/pitches/api';
 import type { Pitch, Selection } from '../features/pitches/types';
 import { getBooking } from '../features/bookings/api';
-import { demoPitches } from '../mocks/demoData';
 
 export default function AppProvider({ children }: { children: ReactNode }) {
   const [page, setPage] = useState<Page>(currentPage);
@@ -24,10 +23,10 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   };
   const request = useRef<AbortController | null>(null);
 
-  const navigate = (next: Page, id?: number) => {
+  const navigate = (next: Page, id?: number, nextNotice?: string) => {
     location.hash = '/' + next + (next === 'detail' && id ? '?id=' + id : '');
     setPage(next);
-    setNotice('');
+    setNotice(nextNotice ?? '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -87,10 +86,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     navigate('booking');
   }
 
-  const selectedPitch =
-    pitches.find((pitch) => pitch.id === pitchId) ??
-    demoPitches.find((pitch) => pitch.id === pitchId) ??
-    demoPitches[0];
+
 
   const value = {
     page,
@@ -104,7 +100,6 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     selection,
     setSelection,
     select,
-    selectedPitch,
     date,
     setDate,
     booking,

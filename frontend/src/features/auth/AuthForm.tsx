@@ -21,17 +21,16 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
 
     try {
       if (page === "register") {
-        await axios.post("http://localhost:3000/api/auth/register", {
+        await axios.post("/api/auth/register", {
           email,
           fullName,
           password,
           phone,
         });
 
-        setNotice("Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
-        navigate("login");
+        navigate("login", undefined, "Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
       } else {
-        const response = await axios.post("http://localhost:3000/api/auth/login", {
+        const response = await axios.post("/api/auth/login", {
           identifier: email,
           password,
         });
@@ -46,12 +45,13 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
         }
 
         window.dispatchEvent(new Event("auth-changed"));
-        setNotice("Đăng nhập thành công!");
-        navigate("home");
+        navigate("home", undefined, "Đăng nhập thành công!");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage =
-        err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại!";
+        axios.isAxiosError(err)
+          ? err.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại!"
+          : "Có lỗi xảy ra, vui lòng thử lại!";
       setNotice(Array.isArray(errorMessage) ? errorMessage.join(", ") : errorMessage);
     } finally {
       setLoading(false);

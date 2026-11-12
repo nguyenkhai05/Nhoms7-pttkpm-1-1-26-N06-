@@ -27,7 +27,7 @@ export interface CurrentBooking {
 
 export interface AppState {
   page: Page;
-  navigate: (page: Page, id?: number) => void;
+  navigate: (page: Page, id?: number, notice?: string) => void;
   pitches: Pitch[];
   search: (filters?: Record<string, string>) => void;
   loading: boolean;
@@ -37,7 +37,6 @@ export interface AppState {
   selection: Selection | null;
   setSelection: Dispatch<SetStateAction<Selection | null>>;
   select: (selection: Selection) => void;
-  selectedPitch: Pitch;
   date: string;
   setDate: Dispatch<SetStateAction<string>>;
   booking: CurrentBooking | null;

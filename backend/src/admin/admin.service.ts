@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AdminRepository, type StaffRole } from './admin.repository.js';
+import { isValidVietnamesePhone, normalizeVietnamesePhone } from '../auth/phone.util.js';
 
 const ROLES: StaffRole[] = ['ADMIN','MANAGER','RECEPTIONIST','ACCOUNTANT'];
 function object(value: unknown): Record<string, unknown> {
@@ -33,7 +34,9 @@ export class AdminService {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException('Email không hợp lệ.');
     const password = requiredString(data.password, 'Mật khẩu', 100);
     if (password.length < 8) throw new BadRequestException('Mật khẩu phải có ít nhất 8 ký tự.');
-    const phone = data.phone == null || data.phone === '' ? null : requiredString(data.phone, 'Số điện thoại', 30);
+    const phoneInput = data.phone == null || data.phone === '' ? null : requiredString(data.phone, 'Số điện thoại', 30);
+    const phone = phoneInput === null ? null : normalizeVietnamesePhone(phoneInput);
+    if (phone !== null && !isValidVietnamesePhone(phone)) throw new BadRequestException('Số điện thoại phải gồm 10 chữ số hợp lệ tại Việt Nam.');
     const passwordHash = await bcrypt.hash(password, 12);
     return this.repository.create(actorId, ip, { fullName, email, phone, passwordHash, role: role(data.role) });
   }
@@ -47,7 +50,12 @@ export class AdminService {
       throw new ForbiddenException('Không tự đổi vai trò hoặc khóa tài khoản đang sử dụng.');
     const changes: { fullName?: string; phone?: string | null; status?: 'ACTIVE' | 'LOCKED'; role?: StaffRole } = {};
     if (data.fullName !== undefined) changes.fullName = requiredString(data.fullName, 'Họ tên', 120);
-    if (data.phone !== undefined) changes.phone = data.phone == null || data.phone === '' ? null : requiredString(data.phone, 'Số điện thoại', 30);
+    if (data.phone !== undefined) {
+      const phoneInput = data.phone == null || data.phone === '' ? null : requiredString(data.phone, 'Số điện thoại', 30);
+      const phone = phoneInput === null ? null : normalizeVietnamesePhone(phoneInput);
+      if (phone !== null && !isValidVietnamesePhone(phone)) throw new BadRequestException('Số điện thoại phải gồm 10 chữ số hợp lệ tại Việt Nam.');
+      changes.phone = phone;
+    }
     if (data.status !== undefined) {
       if (data.status !== 'ACTIVE' && data.status !== 'LOCKED') throw new BadRequestException('Trạng thái không hợp lệ.');
       changes.status = data.status;

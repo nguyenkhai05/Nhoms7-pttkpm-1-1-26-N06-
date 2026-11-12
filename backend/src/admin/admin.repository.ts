@@ -48,7 +48,7 @@ export class AdminRepository {
       return { id: result.insertId };
     } catch (error) {
       await connection.rollback();
-      if ((error as { code?: string }).code === 'ER_DUP_ENTRY') throw new ConflictException('Email đã tồn tại.');
+      if ((error as { code?: string }).code === 'ER_DUP_ENTRY') throw new ConflictException('Email hoặc số điện thoại đã được sử dụng.');
       throw error;
     } finally { connection.release(); }
   }
@@ -87,7 +87,13 @@ export class AdminRepository {
         VALUES(?,'USER_UPDATE','USER',?,?,?,?)`, [actorId, String(id), JSON.stringify(before), JSON.stringify(after), ip ?? null]);
       await connection.commit();
       return after;
-    } catch (error) { await connection.rollback(); throw error; }
+    } catch (error) {
+      await connection.rollback();
+      if ((error as { code?: string }).code === 'ER_DUP_ENTRY') {
+        throw new ConflictException('Số điện thoại đã được sử dụng.');
+      }
+      throw error;
+    }
     finally { connection.release(); }
   }
 

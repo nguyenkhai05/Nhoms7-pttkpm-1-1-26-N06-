@@ -103,7 +103,19 @@ export default function PitchDetailPage({
             </div>
           </section>
           <section className="panel">
-            <TimeSlotMatrixGrid pitchId={id} onSelect={onSelect} />
+            <TimeSlotMatrixGrid
+              pitchId={id}
+              onSelect={(selection) =>
+                onSelect({
+                  ...selection,
+                  pitch: {
+                    name: pitch.name,
+                    complexName: pitch.complexName,
+                    address: pitch.address,
+                  },
+                })
+              }
+            />
           </section>
         </>
       ) : (
