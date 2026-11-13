@@ -7,6 +7,7 @@ export type Page =
   | "catalog"
   | "schedule"
   | "dashboard"
+  | "transactions"
   | "login"
   | "register";
 
@@ -19,6 +20,7 @@ export const titles: Record<Page, string> = {
   catalog: "Danh mục sân & bảng giá",
   schedule: "Ma trận lịch sân",
   dashboard: "Báo cáo tổng quan",
+  transactions: "Giao dịch & hoàn tiền",
   login: "Đăng nhập",
   register: "Đăng ký",
 };

@@ -37,10 +37,10 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("auth-changed", syncUser);
   }, []);
   const canAccess = (permission: string) => user?.permissions?.includes(permission) ?? false;
-  const adminLinks = links.slice(4).filter((item) =>
+  const adminLinks = [...links.slice(4), ...(canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE") ? [{page:"transactions" as const,label:"Giao dịch & hoàn tiền",icon:"₫"}] : [])].filter((item) =>
     item.page === "catalog" ? canAccess("PITCH_WRITE") :
     item.page === "schedule" ? canAccess("BOOKING_WRITE") :
-    item.page === "dashboard" ? canAccess("REPORT_READ") : false
+    item.page === "dashboard" ? canAccess("REPORT_READ") : item.page === "transactions" ? (canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE")) : false
   );
   const logout = () => {
     localStorage.removeItem("accessToken");
