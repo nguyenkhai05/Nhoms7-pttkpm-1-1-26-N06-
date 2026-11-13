@@ -8,7 +8,7 @@ import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { AdminModule } from './admin/admin.module.js';
-
+import { PaymentsModule } from './payments/payments.module.js';
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
 @Module({
@@ -19,6 +19,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     CatalogModule,
     ReportsModule,
     AdminModule,
+    PaymentsModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
     ...(process.env.OBSERVE_APP_KEY && process.env.OBSERVE_APP_SECRET ? [ObserveModule.forRoot({
