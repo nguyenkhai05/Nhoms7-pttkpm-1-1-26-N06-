@@ -3,6 +3,8 @@ import PageHead from "../components/PageHead";
 import ComplexManager from "../features/catalog/components/ComplexManager";
 import PitchManager from "../features/catalog/components/PitchManager";
 import PriceManager from "../features/catalog/components/PriceManager";
+import HolidayManager from "../features/catalog/components/HolidayManager";
+import SlotManager from "../features/catalog/components/SlotManager";
 
 export default function CatalogPage() {
   const [complexVersion, setComplexVersion] = useState(0);
@@ -17,6 +19,8 @@ export default function CatalogPage() {
       <ComplexManager onChanged={() => setComplexVersion((value) => value + 1)} />
       <PitchManager refreshKey={complexVersion} onChanged={() => setPitchVersion((value) => value + 1)} />
       <PriceManager refreshKey={`${complexVersion}:${pitchVersion}`} />
+      <HolidayManager />
+      <SlotManager refreshKey={`${complexVersion}:${pitchVersion}`} />
     </>
   );
 }
