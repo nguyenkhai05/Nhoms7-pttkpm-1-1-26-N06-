@@ -3,7 +3,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { AuthRepository } from './auth.repository.js';
 import { RegisterDto, LoginDto } from './dto/auth.dto.js';
-import { isValidVietnamesePhone, normalizeVietnamesePhone } from './phone.util.js';
 
 @Injectable()
 export class AuthService {
@@ -15,24 +14,23 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const email = dto.email?.trim().toLowerCase();
     const fullName = dto.fullName?.trim();
-    const phone = dto.phone ? normalizeVietnamesePhone(dto.phone) : '';
+    const phone = dto.phone?.trim();
     if (!email || !fullName || !dto.password || !phone) {
       throw new BadRequestException('Vui lòng nhập họ tên, email, số điện thoại và mật khẩu.');
     }
     if (dto.password.length < 8) throw new BadRequestException('Mật khẩu phải có ít nhất 8 ký tự.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException('Email không hợp lệ.');
-    if (!isValidVietnamesePhone(phone)) throw new BadRequestException('Số điện thoại phải gồm 10 chữ số hợp lệ tại Việt Nam.');
+    if (!/^[0-9+().\s-]{8,20}$/.test(phone)) throw new BadRequestException('Số điện thoại không hợp lệ.');
     if (await this.authRepository.findByEmail(email)) throw new ConflictException('Email này đã được đăng ký.');
-    if (await this.authRepository.findByPhone(phone)) throw new ConflictException('Số điện thoại này đã được đăng ký.');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
     try {
       const userId = await this.authRepository.createCustomer({ ...dto, email, fullName, phone }, passwordHash);
       return { statusCode: 201, message: 'Đăng ký tài khoản thành công.', data: { userId, role: 'CUSTOMER' } };
     } catch (error) {
-      // Unique email/phone constraints also protect against concurrent registrations.
+      // Unique email constraint also protects against two registrations racing.
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_DUP_ENTRY') {
-        throw new ConflictException('Email hoặc số điện thoại đã được đăng ký.');
+        throw new ConflictException('Email hoặc thông tin định danh đã được sử dụng.');
       }
       throw error;
     }

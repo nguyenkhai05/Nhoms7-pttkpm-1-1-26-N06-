@@ -7,8 +7,6 @@ import { CatalogPitchService } from './catalog-pitch.service.js';
 import type { CatalogPitchRepository } from './catalog-pitch.repository.js';
 import type { CatalogPitch } from './catalog.types.js';
 import type { CreatePitchDto, UpdatePitchDto } from './dto/pitch.dto.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { PermissionsGuard } from '../auth/guards/permissions.guard.js';
 
 interface Options {
   upcoming?: number;
@@ -55,10 +53,7 @@ describe('API /api/catalog/pitches', () => {
     const module = await Test.createTestingModule({
       controllers: [CatalogPitchController],
       providers: [{ provide: CatalogPitchService, useValue: new CatalogPitchService(repository) }],
-    })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(PermissionsGuard).useValue({ canActivate: () => true })
-      .compile();
+    }).compile();
     app = module.createNestApplication();
     await app.init();
     return request(app.getHttpServer());

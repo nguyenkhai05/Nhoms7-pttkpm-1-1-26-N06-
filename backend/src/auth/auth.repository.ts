@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { MysqlDatabase } from '../database/mysqlDatabase.js';
 import { RegisterDto } from './dto/auth.dto.js';
-import { normalizeVietnamesePhone } from './phone.util.js';
 
 export interface UserEntity {
   id: number;
@@ -31,15 +30,6 @@ export class AuthRepository {
     return rows[0] ?? null;
   }
 
-  async findByPhone(phone: string): Promise<UserEntity | null> {
-    const normalizedPhone = normalizeVietnamesePhone(phone);
-    const rows = await this.db.rows<UserEntity>(
-      'SELECT id, email, passwordHash, fullName, phone, status, createdAt FROM users WHERE phone = ? LIMIT 1',
-      [normalizedPhone],
-    );
-    return rows[0] ?? null;
-  }
-
   async findByUserId(userId: number): Promise<UserEntity | null> {
     const rows = await this.db.rows<UserEntity>(
       'SELECT id, email, passwordHash, fullName, phone, status, createdAt FROM users WHERE id = ? LIMIT 1',
@@ -50,11 +40,9 @@ export class AuthRepository {
 
   async findByIdentifier(identifier: string): Promise<UserEntity | null> {
     const value = identifier.trim();
-    const isEmail = value.includes('@');
-    const normalizedPhone = isEmail ? '' : normalizeVietnamesePhone(value);
     const rows = await this.db.rows<UserEntity>(
       'SELECT id, email, passwordHash, fullName, phone, status, createdAt FROM users WHERE email = ? OR phone = ? LIMIT 1',
-      [isEmail ? value.toLowerCase() : '', normalizedPhone],
+      [value.toLowerCase(), value],
     );
     return rows[0] ?? null;
   }
@@ -81,7 +69,7 @@ export class AuthRepository {
       await connection.beginTransaction();
       const [result] = await connection.execute<ResultSetHeader>(
         `INSERT INTO users (email, passwordHash, fullName, phone) VALUES (?, ?, ?, ?)`,
-        [dto.email.trim().toLowerCase(), passwordHash, dto.fullName.trim(), dto.phone ? normalizeVietnamesePhone(dto.phone) : null],
+        [dto.email.trim().toLowerCase(), passwordHash, dto.fullName.trim(), dto.phone?.trim() || null],
       );
       const [roleRows] = await connection.execute<RowDataPacket[]>(
         "SELECT id FROM roles WHERE code = 'CUSTOMER' LIMIT 1",

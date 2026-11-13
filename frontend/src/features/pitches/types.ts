@@ -22,7 +22,7 @@ export interface Pitch {
   image: string;
   amenities: Amenity[];
   prices: PriceRule[];
-  startingPrice: number | null;
+  startingPrice: number;
 }
 export interface Selection {
   pitchId: number;
@@ -31,7 +31,6 @@ export interface Selection {
   start?: string;
   end?: string;
   price?: number | null;
-  pitch?: Pick<Pitch, "name" | "complexName" | "address">;
 }
 export interface Slot {
   id: number;

@@ -37,36 +37,3 @@ export interface CatalogPitch {
   image: string | null;
   amenityIds: number[];
 }
-export type PriceDayType = "WEEKDAY" | "WEEKEND" | "HOLIDAY";
-export interface CatalogPrice {
-  id: number;
-  pitchId: number;
-  pitchName: string;
-  complexName: string;
-  dayType: PriceDayType;
-  start: string;
-  end: string;
-  amount: number;
-  depositPercent: number;
-}
-
-export const DAY_TYPE_LABELS: Record<PriceDayType, string> = {
-  WEEKDAY: "Ngày thường",
-  WEEKEND: "Cuối tuần",
-  HOLIDAY: "Ngày lễ",
-};
-
-/** Ngày lễ, từ GET /api/catalog/holidays (date có dạng YYYY-MM-DD). */
-export interface Holiday {
-  date: string;
-  name: string;
-}
-
-/** Ca giờ của một sân; uncoveredDayTypes là các loại ngày mà ca này chưa đặt được vì thiếu hoặc trùng giá. */
-export interface CatalogSlot {
-  id: number;
-  pitchId: number;
-  start: string;
-  end: string;
-  uncoveredDayTypes: PriceDayType[];
-}

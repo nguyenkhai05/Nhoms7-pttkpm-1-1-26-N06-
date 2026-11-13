@@ -7,7 +7,7 @@ export function fail(message: string, status = 400): never {
 }
 
 export function positiveId(value: unknown) {
-  if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) {
+  if (!/^\\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) {
     fail('Mã không hợp lệ');
   }
   return Number(value);

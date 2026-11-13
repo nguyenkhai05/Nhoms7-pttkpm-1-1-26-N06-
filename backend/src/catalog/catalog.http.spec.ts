@@ -6,8 +6,6 @@ import { CatalogController } from './catalog.controller.js';
 import { CatalogService } from './catalog.service.js';
 import type { CatalogRepository } from './catalog.repository.js';
 import type { Complex } from './catalog.types.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { PermissionsGuard } from '../auth/guards/permissions.guard.js';
 
 /** Repository giả lưu trong bộ nhớ, đủ để thử hợp đồng HTTP mà không cần MySQL. */
 function fakeRepository(options: { pitchCounts?: Record<number, number>; removeError?: unknown } = {}) {
@@ -45,10 +43,7 @@ describe('API /api/catalog/complexes', () => {
     const module = await Test.createTestingModule({
       controllers: [CatalogController],
       providers: [{ provide: CatalogService, useValue: new CatalogService(repository) }],
-    })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(PermissionsGuard).useValue({ canActivate: () => true })
-      .compile();
+    }).compile();
     app = module.createNestApplication();
     await app.init();
     return request(app.getHttpServer());

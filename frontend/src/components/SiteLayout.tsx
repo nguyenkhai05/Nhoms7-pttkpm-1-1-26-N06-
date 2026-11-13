@@ -21,7 +21,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("accessToken");
     if (token) {
       axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-      axios.get("/api/auth/me")
+      axios.get("http://localhost:3000/api/auth/me")
         .then((response) => {
           const currentUser = response.data.data as StoredUser;
           localStorage.setItem("user", JSON.stringify(currentUser));
@@ -41,10 +41,6 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
     item.page === "catalog" ? canAccess("PITCH_WRITE") :
     item.page === "schedule" ? canAccess("BOOKING_WRITE") :
     item.page === "dashboard" ? canAccess("REPORT_READ") : false
-  );
-  const adminUserLinks = links.slice(7).filter((item) =>
-    item.page === "users" ? canAccess("USER_WRITE") :
-    item.page === "audit" ? canAccess("AUDIT_READ") : false
   );
   const logout = () => {
     localStorage.removeItem("accessToken");
@@ -82,8 +78,8 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
               {item.label}
             </a>
           ))}
-          {(adminLinks.length > 0 || adminUserLinks.length > 0) && <div className="nav-caption">QUẢN TRỊ</div>}
-          {[...adminLinks,...adminUserLinks].map((item) => (
+          {adminLinks.length > 0 && <div className="nav-caption">QUẢN TRỊ</div>}
+          {adminLinks.map((item) => (
             <a
               key={item.page}
               className={page === item.page ? "active" : ""}

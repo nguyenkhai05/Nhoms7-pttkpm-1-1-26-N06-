@@ -9,7 +9,7 @@ import {
 } from '../features/bookings/api';
 
 export default function BookingPage() {
-  const { selection, setBooking, navigate } = useApp();
+  const { selection, selectedPitch, setBooking, navigate } = useApp();
   const [availableServices, setAvailableServices] = useState<BookingService[]>([]);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [loadingServices, setLoadingServices] = useState(false);
@@ -57,10 +57,6 @@ export default function BookingPage() {
   async function submitBooking() {
     if (!selection) {
       setError('Bạn cần chọn một khung giờ từ trang lịch sân trước.');
-      return;
-    }
-    if (!selection.pitch) {
-      setError('Không có thông tin sân hợp lệ. Vui lòng mở lại chi tiết sân và chọn ca.');
       return;
     }
     if (!localStorage.getItem('accessToken')) {
@@ -114,9 +110,9 @@ export default function BookingPage() {
         <div className="stack">
           <section className="panel">
             <h2>01 · Thông tin trận đấu</h2>
-            <div className="order-field"><span>Sân bóng</span><b>{selection.pitch?.name ?? '—'}</b></div>
-            <div className="order-field"><span>Cụm sân</span><b>{selection.pitch?.complexName ?? '—'}</b></div>
-            <div className="order-field"><span>Địa chỉ</span><b>{selection.pitch?.address ?? '—'}</b></div>
+            <div className="order-field"><span>Sân bóng</span><b>{selectedPitch.name}</b></div>
+            <div className="order-field"><span>Cụm sân</span><b>{selectedPitch.complexName}</b></div>
+            <div className="order-field"><span>Địa chỉ</span><b>{selectedPitch.address}</b></div>
             <div className="order-field"><span>Ngày đá</span><b>{selection.date}</b></div>
             <div className="order-field">
               <span>Khung giờ</span>
@@ -166,7 +162,7 @@ export default function BookingPage() {
 
         <section className="panel order-card">
           <h2>03 · Tóm tắt đơn</h2>
-          <div className="order-field"><span>Sân</span><b>{selection.pitch?.name ?? '—'}</b></div>
+          <div className="order-field"><span>Sân</span><b>{selectedPitch.name}</b></div>
           <div className="order-field"><span>Ngày</span><b>{selection.date}</b></div>
           <div className="order-field">
             <span>Khung giờ</span>

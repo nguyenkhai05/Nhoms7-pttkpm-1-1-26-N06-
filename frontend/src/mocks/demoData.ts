@@ -143,7 +143,6 @@ export function filterDemo(q: Record<string, string>): Pitch[] {
         (p.district + " " + p.address)
           .toLocaleLowerCase("vi")
           .includes(q.district.toLocaleLowerCase("vi"))) &&
-      p.startingPrice !== null &&
       p.startingPrice >= min &&
       p.startingPrice <= max &&
       (!q.amenities || p.amenities.some((a) => a.id === Number(q.amenities))),
