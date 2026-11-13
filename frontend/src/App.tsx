@@ -9,6 +9,7 @@ import PaymentPage from "./pages/PaymentPage";
 import CatalogPage from "./pages/CatalogPage";
 import AdminSchedulePage from "./pages/AdminSchedulePage";
 import DashboardPage from "./pages/DashboardPage";
+import TransactionsPage from "./pages/TransactionsPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import "./styles/app.css";
@@ -24,6 +25,7 @@ function CurrentPage() {
     catalog: CatalogPage,
     schedule: AdminSchedulePage,
     dashboard: DashboardPage,
+    transactions: TransactionsPage,
     login: LoginPage,
     register: RegisterPage,
   };

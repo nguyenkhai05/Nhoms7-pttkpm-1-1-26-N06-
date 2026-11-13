@@ -7,3 +7,6 @@
 /* Booking flow: quantity inputs and expiry status. */
 .service input[type="number"]{width:76px;min-width:76px;padding:8px;border:1px solid #d6e1d7;border-radius:8px;background:#fff}
 .badge.red{background:#fbe4e4;color:#aa4141}
+/* Payments and refunds workspace */
+.filter-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr)) auto;gap:12px;align-items:end}.filter-grid label{display:grid;gap:7px;font-size:12px;font-weight:700;color:#587060}.filter-grid input,.filter-grid select{width:100%;min-width:0;border:1px solid #dce5dc;border-radius:9px;padding:10px;background:#fff;color:#244b36}.refund-item{border:1px solid #e6ece5;border-radius:12px;padding:14px;margin:12px 0}.refund-item p{font-size:13px;margin:8px 0}.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.action-row button{padding:9px 13px}
+@media(max-width:900px){.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two-columns{grid-template-columns:1fr}}
