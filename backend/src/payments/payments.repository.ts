@@ -59,15 +59,18 @@ export class PaymentsRepository {
       if (!['PENDING_DEPOSIT', 'DEPOSIT_PAID', 'CHECKED_IN'].includes(booking.status)) throw new Error('BOOKING_NOT_PAYABLE');
       const [sumRows] = await connection.execute<any[]>(
         `SELECT COALESCE(SUM(amount),0) AS total FROM payments WHERE bookingId=? AND status='SUCCEEDED'`, [input.bookingId]);
-      const due = Math.max(0, Number(booking.pitchAmount) - Number(sumRows[0].total));
+      const targetTotal = booking.status === 'PENDING_DEPOSIT' ? Number(booking.depositDue) : Number(booking.pitchAmount) + Number(booking.serviceAmount || 0);
+      const due = Math.max(0, targetTotal - Number(sumRows[0].total));
       if (input.amount <= 0 || input.amount > due) throw new Error('INVALID_AMOUNT');
-      const purpose = Number(sumRows[0].total) === 0 ? 'DEPOSIT' : 'SETTLEMENT';
+      const purpose = booking.status === 'PENDING_DEPOSIT' ? 'DEPOSIT' : 'SETTLEMENT';
       const [result] = await connection.execute<any>(
         `INSERT INTO payments (bookingId,purpose,method,provider,providerReference,amount,status,paidAt,receivedBy)
-         VALUES (?,?,'CASH','CASHIER',?,?,'SUCCEEDED',NOW(),?)`,
+         VALUES (?,?,'CASH','CASHIER',?,?,'SUCCEEDED',UTC_TIMESTAMP(),?)`,
         [input.bookingId, purpose, input.reference, input.amount, input.userId]);
-      if (input.amount + Number(sumRows[0].total) >= Number(booking.pitchAmount)) {
-        await connection.execute(`UPDATE bookings SET status=IF(status='PENDING_DEPOSIT','DEPOSIT_PAID',status) WHERE id=?`, [input.bookingId]);
+      if (booking.status === 'PENDING_DEPOSIT' && input.amount + Number(sumRows[0].total) >= Number(booking.depositDue)) {
+        await connection.execute("UPDATE bookings SET status='DEPOSIT_PAID',expiresAt=NULL WHERE id=?", [input.bookingId]);
+        await connection.execute("UPDATE slot_occupancy SET state='CONFIRMED',expiresAt=NULL WHERE bookingId=?", [input.bookingId]);
+        await connection.execute("UPDATE service_orders SET status='CONFIRMED' WHERE bookingId=? AND status='DRAFT'", [input.bookingId]);
       }
       await connection.execute(
         `INSERT INTO audit_logs(actorId,action,entityType,entityId,afterData) VALUES (?,'PAYMENT_CASH_RECORDED','PAYMENT',?,JSON_OBJECT('bookingId',?,'amount',?,'method','CASH'))`,
@@ -100,7 +103,7 @@ export class PaymentsRepository {
     } catch (e) { await c.rollback(); throw e; } finally { c.release(); }
   }
 
-  async transitionRefund(refundId: number, action: 'APPROVED'|'REJECTED'|'PAID'|'FAILED', userId: number, reference?: string) {
+  async transitionRefund(refundId: number, action: 'APPROVED'|'REJECTED'|'PAID'|'FAILED', userId: number, reference?: string, reason?: string) {
     const c = await this.db.pool.getConnection();
     try {
       await c.beginTransaction();
@@ -113,20 +116,41 @@ export class PaymentsRepository {
       if (action === 'PAID' && refund.paymentStatus !== 'SUCCEEDED') throw new Error('PAYMENT_NOT_REFUNDABLE');
       await c.execute(
         `UPDATE refunds SET status=?, approvedBy=IF(? IN ('APPROVED','REJECTED'),?,approvedBy),
-         paidAt=IF(?='PAID',NOW(),paidAt), providerReference=COALESCE(?,providerReference) WHERE id=?`,
-        [action, action, userId, action, reference || null, refundId]);
+         paidAt=IF(?='PAID',UTC_TIMESTAMP(),paidAt), providerReference=COALESCE(?,providerReference), rejectReason=IF(?='REJECTED',?,rejectReason) WHERE id=?`,
+        [action, action, userId, action, reference || null, action, reason || null, refundId]);
       await c.execute(
         `INSERT INTO audit_logs(actorId,action,entityType,entityId,beforeData,afterData)
          VALUES (?,?,?,?,JSON_OBJECT('status',?),JSON_OBJECT('status',?,'paymentId',?,'amount',?))`,
         [userId, `REFUND_${action}`, 'REFUND', String(refundId), refund.status, action, refund.paymentId, refund.amount]);
+      let cancelledBookingId: number | null = null;
+      if (action === 'PAID' && /hủy sân|bảo trì sân/i.test(String(refund.reason))) {
+        const [bookingRows] = await c.execute<any[]>(
+          'SELECT bookingId FROM payments WHERE id=? FOR UPDATE', [refund.paymentId]);
+        const bookingId = bookingRows[0]?.bookingId;
+        if (bookingId) {
+          cancelledBookingId = Number(bookingId);
+          await c.execute(`UPDATE inventory i JOIN (SELECT so.complexId,si.serviceId,SUM(si.quantity-si.returnedQuantity) qty FROM service_orders so JOIN service_order_items si ON si.orderId=so.id WHERE so.bookingId=? AND so.isDelivered=0 AND so.isRestocked=0 GROUP BY so.complexId,si.serviceId) x ON x.complexId=i.complexId AND x.serviceId=i.serviceId SET i.reserved=GREATEST(0,i.reserved-x.qty)`, [bookingId]);
+          await c.execute("UPDATE service_orders SET status='CANCELLED',isRestocked=1 WHERE bookingId=? AND isDelivered=0 AND isRestocked=0", [bookingId]);
+          await c.execute("UPDATE bookings SET status='CANCELLED' WHERE id=? AND status='DEPOSIT_PAID'", [bookingId]);
+          await c.execute('DELETE FROM slot_occupancy WHERE bookingId=?', [bookingId]);
+        }
+      }
       await c.commit();
-      return { id: refundId, status: action };
+      return { id: refundId, status: action, bookingId: cancelledBookingId };
     } catch (e) { await c.rollback(); throw e; } finally { c.release(); }
   }
 
-  async findBookingById(id: number) {
-    const [rows] = await this.db.pool.execute<any[]>('SELECT * FROM bookings WHERE id=?', [id]);
+  async findBookingSlot(bookingId: number) {
+    const [rows] = await this.db.pool.execute<any[]>(`SELECT pitchId,slotId,date,status FROM bookings WHERE id=?`, [bookingId]);
     return rows[0] || null;
+  }
+
+  async findPaymentBookingOwner(paymentId: number): Promise<number | null> {
+    const [rows] = await this.db.pool.execute<any[]>(
+      'SELECT b.customerId FROM payments p JOIN bookings b ON b.id=p.bookingId WHERE p.id=? LIMIT 1',
+      [paymentId],
+    );
+    return rows[0]?.customerId == null ? null : Number(rows[0].customerId);
   }
   async getBookingsByCustomer(customerId: number) {
     const [rows] = await this.db.pool.execute<any[]>(
@@ -135,37 +159,5 @@ export class PaymentsRepository {
        WHERE b.customerId=? ORDER BY b.createdAt DESC`, [customerId]);
     return rows;
   }
-  async createDepositPayment(bookingId: number, amount: number, method: 'CASH'|'BANK_QR', ref: string) {
-    const [r] = await this.db.pool.execute<any>(
-      `INSERT INTO payments(bookingId,purpose,method,provider,providerReference,amount,status,paidAt)
-       VALUES (?,'DEPOSIT',?,'VIETQR',?,?,'SUCCEEDED',NOW())`, [bookingId,method,ref,amount]);
-    return r.insertId;
-  }
-  async updateBookingStatus(id: number, status: string) { await this.db.pool.execute('UPDATE bookings SET status=? WHERE id=?',[status,id]); }
-  async confirmSlotOccupancy(id: number) { await this.db.pool.execute(`UPDATE slot_occupancy SET state='CONFIRMED',expiresAt=NULL WHERE bookingId=?`,[id]); }
-  async releaseSlotOccupancy(id: number) { await this.db.pool.execute('DELETE FROM slot_occupancy WHERE bookingId=?',[id]); }
-  async findSucceededPaymentByBooking(id: number) {
-    const [rows] = await this.db.pool.execute<any[]>(`SELECT * FROM payments WHERE bookingId=? AND status='SUCCEEDED' LIMIT 1`,[id]);
-    return rows[0] || null;
-  }
-  async createRefundRequest(paymentId: number, amount: number, reason: string, userId: number|null) {
-    const c = await this.db.pool.getConnection();
-    try {
-      await c.beginTransaction();
-      const [payments] = await c.execute<any[]>('SELECT * FROM payments WHERE id=? FOR UPDATE', [paymentId]);
-      const payment = payments[0];
-      if (!payment || payment.status !== 'SUCCEEDED') throw new Error('PAYMENT_NOT_REFUNDABLE');
-      const [totals] = await c.execute<any[]>(
-        `SELECT COALESCE(SUM(amount),0) AS total FROM refunds WHERE paymentId=? AND status IN ('REQUESTED','APPROVED','PAID')`, [paymentId]);
-      if (amount <= 0 || Number(totals[0].total) + amount > Number(payment.amount)) throw new Error('REFUND_LIMIT');
-      const [r] = await c.execute<any>(
-        `INSERT INTO refunds(paymentId,amount,reason,status,requestedBy) VALUES (?,?,?,'REQUESTED',?)`,
-        [paymentId,amount,reason,userId]);
-      await c.execute(
-        `INSERT INTO audit_logs(actorId,action,entityType,entityId,afterData) VALUES (?,'REFUND_REQUESTED','REFUND',?,JSON_OBJECT('paymentId',?,'amount',?,'reason',?))`,
-        [userId,String(r.insertId),paymentId,amount,reason]);
-      await c.commit();
-      return r.insertId;
-    } catch (e) { await c.rollback(); throw e; } finally { c.release(); }
-  }
+
 }

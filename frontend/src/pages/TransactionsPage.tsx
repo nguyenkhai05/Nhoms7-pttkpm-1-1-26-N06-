@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PageHead from "../components/PageHead";
 
-type Refund = { id:number; paymentId?:number; amount:number; reason:string; status:string; requesterName?:string; approverName?:string; bookingCode?:string };
+type Refund = { id:number; paymentId?:number; amount:number; reason:string; status:string; bankName?:string; accountNumber?:string; accountName?:string; rejectReason?:string; requesterName?:string; approverName?:string; bookingCode?:string };
 type Payment = { id:number; bookingId:number|null; bookingCode?:string; purpose:string; method:"CASH"|"BANK_QR"; amount:number; status:string; paidAt:string|null; createdAt:string; refunds?:Refund[] };
 const money=(n:number)=>new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(n);
 const apiBase="/api/payments";
@@ -15,6 +15,7 @@ async function call<T>(path:string,init?:RequestInit):Promise<T>{
 export default function TransactionsPage(){
   const [rows,setRows]=useState<Payment[]>([]);
   const [pendingRefunds,setPendingRefunds]=useState<Refund[]>([]);
+  const [reviewEvents,setReviewEvents]=useState<any[]>([]);
   const [selected,setSelected]=useState<Payment|null>(null);
   const [status,setStatus]=useState("");
   const [method,setMethod]=useState("");
@@ -30,15 +31,16 @@ export default function TransactionsPage(){
       const q=new URLSearchParams(Object.entries({status,method,from,to}).filter(([,v])=>v));
       const data=await call<Payment[]>("?"+q.toString());setRows(data);
       if(canApprove)setPendingRefunds(await call<Refund[]>("/refunds?status=REQUESTED"));
+      if(canWrite)setReviewEvents(await call<any[]>("/events?status=NEEDS_REVIEW"));
       if(selected){const fresh=data.find(x=>x.id===selected.id);if(fresh)setSelected(await call<Payment>(`/${fresh.id}`));}
     }catch(e){setError(e instanceof Error?e.message:"Không thể tải giao dịch.");}
     finally{setBusy(false);}
-  },[status,method,from,to,canApprove]);
+  },[status,method,from,to,canApprove,canWrite]);
   useEffect(()=>{void load();},[load]);
   async function choose(id:number){try{setSelected(await call<Payment>(`/${id}`));}catch(e){setError(e instanceof Error?e.message:"Không tải được chi tiết.");}}
   async function act(path:string,body?:unknown){
     setBusy(true);setError("");
-    try{await call(path,{method:(path==="/cash"||path.endsWith("/refunds"))?"POST":"PATCH",...(body?{body:JSON.stringify(body)}:{})});await load();if(selected)await choose(selected.id);}
+    try{await call(path,{method:(path==="/cash"||path.endsWith("/refunds")||path.includes("/events/"))?"POST":"PATCH",...(body?{body:JSON.stringify(body)}:{})});await load();if(selected)await choose(selected.id);}
     catch(e){setError(e instanceof Error?e.message:"Thao tác thất bại.");}
     finally{setBusy(false);}
   }
@@ -69,10 +71,14 @@ export default function TransactionsPage(){
         <button className="outline" onClick={()=>{setStatus("");setMethod("");setFrom("");setTo("");}}>Xóa lọc</button>
       </div>
     </section>
+    {canWrite&&<section className="panel" style={{marginBottom:20}}>
+      <div className="section-heading"><h2>Giao dịch ngân hàng cần đối soát</h2><span className="muted">{reviewEvents.length} sự kiện</span></div>
+      {!reviewEvents.length?<p className="muted">Không có giao dịch treo.</p>:<div className="table-wrap"><table><thead><tr><th>Event</th><th>Nội dung</th><th>Số tiền</th><th>Thao tác</th></tr></thead><tbody>{reviewEvents.map(ev=>{const payload=typeof ev.payload==="string"?JSON.parse(ev.payload):ev.payload;return <tr key={ev.id}><td>#{ev.id}<small>{ev.eventId}</small></td><td>{payload.content}</td><td>{money(Number(payload.amount||0))}</td><td><button className="primary" onClick={()=>{const bookingId=Number(window.prompt("Nhập ID booking để ghép giao dịch:"));if(Number.isInteger(bookingId)&&bookingId>0)void act(`/events/${ev.id}/resolve`,{action:"MATCH",bookingId});}}>Ghép booking</button> <button className="outline" onClick={()=>void act(`/events/${ev.id}/resolve`,{action:"DISMISS",note:window.prompt("Lý do bỏ qua:")||"Bỏ qua thủ công"})}>Bỏ qua</button></td></tr>})}</tbody></table></div>}
+    </section>}
     {canApprove&&<section className="panel" style={{marginBottom:20}}>
       <div className="section-heading"><h2>Yêu cầu hoàn tiền chờ duyệt</h2><span className="muted">{pendingRefunds.length} yêu cầu</span></div>
-      {!pendingRefunds.length?<p className="muted">Không có yêu cầu đang chờ duyệt.</p>:<div className="table-wrap"><table><thead><tr><th>Yêu cầu</th><th>Booking</th><th>Số tiền</th><th>Lý do</th><th>Người yêu cầu</th><th>Thao tác</th></tr></thead><tbody>
-        {pendingRefunds.map(r=><tr key={r.id}><td>#{r.id}</td><td>{r.bookingCode||r.paymentId||"—"}</td><td>{money(r.amount)}</td><td>{r.reason}</td><td>{r.requesterName||"—"}</td><td><div className="action-row"><button className="primary" onClick={()=>void act(`/refunds/${r.id}/approve`)}>Duyệt</button><button className="outline" onClick={()=>void act(`/refunds/${r.id}/reject`)}>Từ chối</button></div></td></tr>)}
+      {!pendingRefunds.length?<p className="muted">Không có yêu cầu đang chờ duyệt.</p>:<div className="table-wrap"><table><thead><tr><th>Yêu cầu</th><th>Booking</th><th>Số tiền</th><th>Tài khoản nhận hoàn</th><th>Lý do</th><th>Người yêu cầu</th><th>Thao tác</th></tr></thead><tbody>
+        {pendingRefunds.map(r=><tr key={r.id}><td>#{r.id}</td><td>{r.bookingCode||r.paymentId||"—"}</td><td>{money(r.amount)}</td><td>{r.bankName?`${r.bankName} · ${r.accountNumber} · ${r.accountName}`:"—"}</td><td>{r.reason}</td><td>{r.requesterName||"—"}</td><td><div className="action-row"><button className="primary" onClick={()=>void act(`/refunds/${r.id}/approve`)}>Duyệt</button><button className="outline" onClick={()=>{const reason=window.prompt("Lý do từ chối hoàn tiền:");if(reason?.trim())void act(`/refunds/${r.id}/reject`,{reason});}}>Từ chối</button></div></td></tr>)}
       </tbody></table></div>}
     </section>}
     <div className="two-columns">
@@ -98,9 +104,9 @@ export default function TransactionsPage(){
           <h3>Yêu cầu hoàn tiền</h3>
           {!selected.refunds?.length?<p className="muted">Chưa có yêu cầu hoàn.</p>:selected.refunds.map(r=><div className="refund-item" key={r.id}>
             <div className="order-field"><span>Yêu cầu #{r.id}</span><b>{money(r.amount)}</b></div>
-            <p>{r.reason}</p><p className="muted">Người yêu cầu: {r.requesterName||"—"} · Người duyệt: {r.approverName||"Chưa duyệt"}</p>
+            <p>{r.reason}</p>{r.bankName&&<p className="muted">Hoàn về: {r.bankName} · {r.accountNumber} · {r.accountName}</p>}{r.rejectReason&&<p className="muted">Lý do từ chối: {r.rejectReason}</p>}<p className="muted">Người yêu cầu: {r.requesterName||"—"} · Người duyệt: {r.approverName||"Chưa duyệt"}</p>
             <span className="badge amber">{r.status}</span>
-            {canApprove&&r.status==="REQUESTED"&&<div className="action-row"><button className="primary" onClick={()=>void act(`/refunds/${r.id}/approve`)}>Duyệt</button><button className="outline" onClick={()=>void act(`/refunds/${r.id}/reject`)}>Từ chối</button></div>}
+            {canApprove&&r.status==="REQUESTED"&&<div className="action-row"><button className="primary" onClick={()=>void act(`/refunds/${r.id}/approve`)}>Duyệt</button><button className="outline" onClick={()=>{const reason=window.prompt("Lý do từ chối hoàn tiền:");if(reason?.trim())void act(`/refunds/${r.id}/reject`,{reason});}}>Từ chối</button></div>}
             {canApprove&&r.status==="APPROVED"&&<div className="action-row"><button className="primary" onClick={()=>void act(`/refunds/${r.id}/paid`,{providerReference:window.prompt("Mã tham chiếu hoàn tiền (nếu có):")||undefined})}>Xác nhận đã hoàn</button><button className="outline" onClick={()=>void act(`/refunds/${r.id}/failed`)}>Đánh dấu thất bại</button></div>}
           </div>)}
         </>}

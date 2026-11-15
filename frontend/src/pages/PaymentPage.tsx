@@ -16,6 +16,22 @@ export default function PaymentPage() {
   const [remaining, setRemaining] = useState(() => getRemainingSeconds(booking?.expiresAt ?? null));
   const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState('');
+  const [qr, setQr] = useState<any>(null);
+  const [paying, setPaying] = useState(false);
+
+  useEffect(() => {
+    if (!booking?.id || booking.status !== 'PENDING_DEPOSIT') return;
+    const token = localStorage.getItem('accessToken');
+    fetch(`/api/payments/bookings/${booking.id}/qr`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(async response => { const json = await response.json(); if (!response.ok) throw new Error(json.message || 'Không lấy được mã QR.'); setQr(json.data); })
+      .catch(cause => setError(cause instanceof Error ? cause.message : 'Không lấy được mã QR.'));
+  }, [booking?.id, booking?.status]);
+
+  async function simulatePayment() {
+    if (!booking) return; setPaying(true); setError('');
+    try { const token=localStorage.getItem('accessToken'); const response=await fetch(`/api/payments/bookings/${booking.id}/demo-paid`,{method:'POST',headers:token?{Authorization:`Bearer ${token}`}:{}}); const json=await response.json(); if(!response.ok) throw new Error(json.message||'Thanh toán thất bại.'); setBooking({...booking,status:'DEPOSIT_PAID',expiresAt:null}); setError('Đã xác nhận thanh toán demo. Đơn đã chuyển sang trạng thái ĐÃ CỌC.'); }
+    catch(cause){setError(cause instanceof Error?cause.message:'Không thể thanh toán.');} finally{setPaying(false);}
+  }
 
   useEffect(() => {
     if (!booking?.expiresAt) return;
@@ -98,12 +114,10 @@ export default function PaymentPage() {
         </section>
 
         <section className="panel qr-panel">
-          <div className="qr-placeholder">
-            <div className="qr-squares" aria-hidden="true">▦</div>
-            <b>Thanh toán VietQR</b>
-            <small>Phần tạo QR và xác nhận webhook thuộc UC1.4, chưa được tích hợp trong bước này.</small>
-          </div>
+          {qr ? <div className="qr-placeholder"><img src={qr.qrImageUrl} alt="Mã VietQR demo" style={{width:'min(100%,280px)',height:'auto',margin:'0 auto'}}/><b>Thanh toán VietQR · Tài khoản mẫu</b><small>Ngân hàng: {qr.bankCode} · STK: {qr.accountNumber}</small><small>Chủ TK: {qr.accountName}</small><small>Nội dung: {qr.description}</small><b>{money(qr.amount)}</b></div> : <div className="qr-placeholder"><div className="qr-squares" aria-hidden="true">▦</div><b>Thanh toán VietQR</b><small>{booking.status==='PENDING_DEPOSIT'?'Đang tạo mã QR...':'Thanh toán đã được ghi nhận.'}</small></div>}
           <p>Trạng thái Booking: <span className="badge amber">{booking.status}</span></p>
+          {booking.status==='PENDING_DEPOSIT' && <button className="primary" disabled={paying||expired} onClick={()=>void simulatePayment()}>{paying?'Đang xác nhận...':'Mô phỏng đã chuyển khoản'}</button>}
+          {booking.status==='DEPOSIT_PAID' && <p className="success-text">Đã thanh toán cọc thành công. Lễ tân có thể tìm đơn trên ma trận lịch để check-in.</p>}
           {expired && <p className="muted">Tiến trình backend sẽ tự đánh dấu đơn hết hạn và giải phóng slot, tồn kho dịch vụ đã giữ.</p>}
         </section>
       </div>

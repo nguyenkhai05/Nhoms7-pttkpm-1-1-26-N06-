@@ -10,6 +10,9 @@ import CatalogPage from "./pages/CatalogPage";
 import AdminSchedulePage from "./pages/AdminSchedulePage";
 import DashboardPage from "./pages/DashboardPage";
 import TransactionsPage from "./pages/TransactionsPage";
+import InventoryPage from "./pages/InventoryPage";
+import AuditPage from "./pages/AuditPage";
+import BookingHistoryPage from "./pages/BookingHistoryPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import "./styles/app.css";
@@ -26,6 +29,9 @@ function CurrentPage() {
     schedule: AdminSchedulePage,
     dashboard: DashboardPage,
     transactions: TransactionsPage,
+    inventory: InventoryPage,
+    audit: AuditPage,
+    history: BookingHistoryPage,
     login: LoginPage,
     register: RegisterPage,
   };

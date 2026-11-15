@@ -10,3 +10,7 @@
 /* Payments and refunds workspace */
 .filter-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr)) auto;gap:12px;align-items:end}.filter-grid label{display:grid;gap:7px;font-size:12px;font-weight:700;color:#587060}.filter-grid input,.filter-grid select{width:100%;min-width:0;border:1px solid #dce5dc;border-radius:9px;padding:10px;background:#fff;color:#244b36}.refund-item{border:1px solid #e6ece5;border-radius:12px;padding:14px;margin:12px 0}.refund-item p{font-size:13px;margin:8px 0}.action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.action-row button{padding:9px 13px}
 @media(max-width:900px){.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two-columns{grid-template-columns:1fr}}
+
+/* UC2.2 schedule state colors */
+.dot.blue,.slot-pill.blue{background:#2563eb;color:#fff}.dot.grey,.slot-pill.grey{background:#6b7280;color:#fff}.success-text{color:#15803d;font-weight:600}.error-text{color:#b91c1c}
+.matrix-cell{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;width:100%;min-width:74px;border:0;background:transparent;padding:3px;cursor:pointer}.matrix-cell:focus-visible{outline:2px solid #2563eb;outline-offset:2px}

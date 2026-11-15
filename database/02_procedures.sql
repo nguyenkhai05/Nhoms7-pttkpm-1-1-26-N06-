@@ -60,7 +60,7 @@ BEGIN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid services list';
  END IF;
  SELECT COUNT(*), COUNT(DISTINCT serviceId),
-        SUM(serviceId IS NULL OR serviceId<=0 OR quantity IS NULL OR quantity<=0)
+        SUM(serviceId IS NULL OR serviceId<=0 OR quantity IS NULL OR quantity<=0 OR quantity>100)
  INTO v_service_count,v_distinct_count,v_invalid_count
  FROM JSON_TABLE(
   p_services, '$[*]' COLUMNS(
@@ -68,7 +68,7 @@ BEGIN
    quantity INT PATH '$.quantity' NULL ON EMPTY NULL ON ERROR
   )
  ) AS requested;
- IF v_invalid_count>0 OR v_service_count<>v_distinct_count THEN
+ IF v_invalid_count>0 OR v_service_count<>v_distinct_count OR v_service_count>30 THEN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Invalid or duplicated service selection';
  END IF;
 
@@ -148,6 +148,7 @@ BEGIN
   VALUES(v_booking,v_complex,'DRAFT');
   SET v_order=LAST_INSERT_ID();
 
+  SET v_done=FALSE;
   OPEN service_cursor;
   service_loop: LOOP
    FETCH service_cursor INTO v_service,v_qty;
@@ -164,6 +165,9 @@ BEGIN
 
    SELECT price INTO v_price FROM services WHERE id=v_service AND active=TRUE FOR UPDATE;
    SET v_service_total=v_service_total+(v_price*v_qty);
+   IF v_service_total>2000000000 OR v_amount+v_service_total>2147483647 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Service total exceeds supported amount';
+   END IF;
    INSERT INTO service_order_items(orderId,serviceId,quantity,unitPrice)
    VALUES(v_order,v_service,v_qty,v_price);
   END LOOP;
@@ -171,7 +175,7 @@ BEGIN
  END IF;
 
  UPDATE bookings
- SET depositDue=CEIL((v_amount+v_service_total)*v_percent/100)
+ SET serviceAmount=v_service_total, depositDue=CEIL((v_amount+v_service_total)*v_percent/100)
  WHERE id=v_booking;
 
  UPDATE slot_occupancy
@@ -196,7 +200,7 @@ BEGIN
  IF v_payment IS NOT NULL THEN
   COMMIT;
  ELSE
-  IF v_status<>'PENDING_DEPOSIT' OR v_expiry<=UTC_TIMESTAMP() OR v_expiry IS NULL OR p_amount<>v_due THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Late payment, wrong amount or invalid state; manual reconciliation required'; END IF;
+  IF v_status<>'PENDING_DEPOSIT' OR v_expiry<=UTC_TIMESTAMP() OR v_expiry IS NULL OR p_amount<v_due THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Late payment, wrong amount or invalid state; manual reconciliation required'; END IF;
   IF NOT EXISTS(SELECT 1 FROM slot_occupancy WHERE bookingId=p_booking AND state='HELD' AND expiresAt>UTC_TIMESTAMP()) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Hold no longer valid'; END IF;
   INSERT INTO payments(bookingId,purpose,method,provider,providerReference,amount,status,paidAt) VALUES(p_booking,'DEPOSIT','BANK_QR',p_provider,p_reference,p_amount,'SUCCEEDED',UTC_TIMESTAMP());
   UPDATE bookings SET status='DEPOSIT_PAID',expiresAt=NULL WHERE id=p_booking;

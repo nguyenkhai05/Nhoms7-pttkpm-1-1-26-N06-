@@ -8,8 +8,11 @@ export type Page =
   | "schedule"
   | "dashboard"
   | "transactions"
+  | "inventory"
+  | "audit"
   | "login"
-  | "register";
+  | "register"
+  | "history";
 
 export const titles: Record<Page, string> = {
   home: "Trang chủ",
@@ -21,8 +24,11 @@ export const titles: Record<Page, string> = {
   schedule: "Ma trận lịch sân",
   dashboard: "Báo cáo tổng quan",
   transactions: "Giao dịch & hoàn tiền",
+  inventory: "Quản lý kho",
+  audit: "Audit Log",
   login: "Đăng nhập",
   register: "Đăng ký",
+  history: "Lịch sử đặt sân",
 };
 
 export const links: { page: Page; label: string; icon: string }[] = [
@@ -30,9 +36,12 @@ export const links: { page: Page; label: string; icon: string }[] = [
   { page: "search", label: "Tìm sân & lịch trống", icon: "⚽" },
   { page: "booking", label: "Đặt sân & dịch vụ", icon: "▣" },
   { page: "payment", label: "Thanh toán VietQR", icon: "▤" },
+  { page: "history", label: "Lịch sử đặt sân", icon: "◷" },
   { page: "catalog", label: "Danh mục & bảng giá", icon: "▦" },
   { page: "schedule", label: "Ma trận lịch sân", icon: "▦" },
   { page: "dashboard", label: "Báo cáo tổng quan", icon: "◫" },
+  { page: "inventory", label: "Quản lý kho", icon: "▤" },
+  { page: "audit", label: "Audit Log", icon: "☷" },
 ];
 
 export function currentPage(): Page {

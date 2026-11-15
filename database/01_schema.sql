@@ -82,7 +82,7 @@ pitchId INT NOT NULL, slotId INT NOT NULL, date DATE NOT NULL, customerId INT,
 guestName VARCHAR(120), guestPhone VARCHAR(30), createdBy INT,
 source ENUM('ONLINE','WALK_IN') NOT NULL DEFAULT 'ONLINE',
 status ENUM('PENDING_DEPOSIT','DEPOSIT_PAID','CHECKED_IN','COMPLETED','CANCELLED','EXPIRED') NOT NULL,
-pitchAmount INT NOT NULL CHECK(pitchAmount>0), depositDue INT NOT NULL CHECK(depositDue>0 AND depositDue<=pitchAmount),
+pitchAmount INT NOT NULL CHECK(pitchAmount>0), serviceAmount INT NOT NULL DEFAULT 0 CHECK(serviceAmount>=0), depositDue INT NOT NULL CHECK(depositDue>0 AND depositDue<=pitchAmount+serviceAmount),
 expiresAt DATETIME, checkedInAt DATETIME, completedAt DATETIME, createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY(slotId,pitchId) REFERENCES slots(id,pitchId), FOREIGN KEY(customerId) REFERENCES users(id), FOREIGN KEY(createdBy) REFERENCES users(id),
 INDEX(pitchId,date,status), INDEX(customerId,createdAt), INDEX(status,expiresAt)
@@ -115,7 +115,7 @@ FOREIGN KEY(complexId,serviceId) REFERENCES inventory(complexId,serviceId), FORE
 
 CREATE TABLE service_orders (
 id INT PRIMARY KEY AUTO_INCREMENT, bookingId INT, complexId INT NOT NULL, createdBy INT,
-status ENUM('DRAFT','CONFIRMED','PAID','CANCELLED') NOT NULL DEFAULT 'DRAFT', createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+status ENUM('DRAFT','CONFIRMED','PAID','CANCELLED') NOT NULL DEFAULT 'DRAFT', isDelivered BOOLEAN NOT NULL DEFAULT FALSE, isRestocked BOOLEAN NOT NULL DEFAULT FALSE, createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY(bookingId) REFERENCES bookings(id), FOREIGN KEY(complexId) REFERENCES complexes(id), FOREIGN KEY(createdBy) REFERENCES users(id)
 ) ENGINE=InnoDB;
 
@@ -152,7 +152,7 @@ receivedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(paymentId) 
 
 CREATE TABLE refunds (
 id INT PRIMARY KEY AUTO_INCREMENT, paymentId INT NOT NULL, amount INT NOT NULL CHECK(amount>0),
-reason VARCHAR(255) NOT NULL, status ENUM('REQUESTED','APPROVED','PAID','REJECTED','FAILED') NOT NULL DEFAULT 'REQUESTED',
+reason VARCHAR(255) NOT NULL, bankName VARCHAR(100), accountNumber VARCHAR(50), accountName VARCHAR(150), rejectReason VARCHAR(255), proofUrl VARCHAR(1000), status ENUM('REQUESTED','APPROVED','PAID','REJECTED','FAILED') NOT NULL DEFAULT 'REQUESTED',
 requestedBy INT, approvedBy INT, providerReference VARCHAR(120) UNIQUE, requestedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, paidAt DATETIME,
 CHECK(status<>'PAID' OR paidAt IS NOT NULL), FOREIGN KEY(paymentId) REFERENCES payments(id), FOREIGN KEY(requestedBy) REFERENCES users(id), FOREIGN KEY(approvedBy) REFERENCES users(id), INDEX(status,paidAt)
 ) ENGINE=InnoDB;

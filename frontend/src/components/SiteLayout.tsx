@@ -37,10 +37,10 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("auth-changed", syncUser);
   }, []);
   const canAccess = (permission: string) => user?.permissions?.includes(permission) ?? false;
-  const adminLinks = [...links.slice(4), ...(canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE") ? [{page:"transactions" as const,label:"Giao dịch & hoàn tiền",icon:"₫"}] : [])].filter((item) =>
+  const adminLinks = [...links.slice(5), ...(canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE") ? [{page:"transactions" as const,label:"Giao dịch & hoàn tiền",icon:"₫"}] : [])].filter((item) =>
     item.page === "catalog" ? canAccess("PITCH_WRITE") :
     item.page === "schedule" ? canAccess("BOOKING_WRITE") :
-    item.page === "dashboard" ? canAccess("REPORT_READ") : item.page === "transactions" ? (canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE")) : false
+    item.page === "dashboard" ? canAccess("REPORT_READ") : item.page === "transactions" ? (canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE")) : item.page === "inventory" ? canAccess("STOCK_WRITE") : item.page === "audit" ? canAccess("AUDIT_READ") : false
   );
   const logout = () => {
     localStorage.removeItem("accessToken");
@@ -63,7 +63,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
         </a>
         <div className="nav-caption">KHÁCH HÀNG</div>
         <nav aria-label="Điều hướng chính">
-          {links.slice(0, 4).map((item) => (
+          {links.slice(0, 5).map((item) => (
             <a
               key={item.page}
               className={
@@ -92,9 +92,9 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
         </nav>
         <div className="sidebar-note">
           <span className="live-dot" />
-          Bản mẫu giao diện
+          Bản demo bài tập lớn
           <br />
-          <small>Chức năng chưa có API được minh họa.</small>
+          <small>Một số màn hình vẫn là bản mẫu.</small>
         </div>
       </aside>
       <div className="workspace">

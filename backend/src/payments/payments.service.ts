@@ -1,9 +1,10 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PaymentsRepository } from './payments.repository.js';
+import { RedisLockService } from '../bookings/redis-lock.service.js';
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly repo: PaymentsRepository) {}
+  constructor(private readonly repo: PaymentsRepository, private readonly redis: RedisLockService) {}
   private translate(error: unknown): never {
     const code = error instanceof Error ? error.message : '';
     const messages: Record<string,string> = {
@@ -39,43 +40,27 @@ export class PaymentsService {
     try {
       const reference=`CASH_${input.bookingId}_${Date.now()}`;
       const id=await this.repo.createCashPayment({...input,reference});
+      const booking=await this.repo.findBookingSlot(input.bookingId);
+      if(booking && booking.status!=='PENDING_DEPOSIT') await this.redis.release(`booking:slot:${booking.pitchId}:${booking.slotId}:${String(booking.date).slice(0,10)}`,`booking:${input.bookingId}`);
       return this.detail(Number(id));
     } catch(e) { return this.translate(e); }
   }
-  async requestRefund(id:number,input:{amount:number;reason:string;userId:number}) {
+  async requestRefund(id:number,input:{amount:number;reason:string;userId:number;canManage?:boolean}) {
+    const ownerId = await this.repo.findPaymentBookingOwner(id);
+    if (ownerId === null || (!input.canManage && ownerId !== input.userId)) throw new NotFoundException('Không tìm thấy giao dịch thuộc tài khoản của bạn.');
     if(!input.reason?.trim()) throw new BadRequestException('Vui lòng nhập lý do hoàn tiền.');
     try {
       const refundId=await this.repo.requestRefund(id,input.amount,input.reason.trim(),input.userId);
       return {id:refundId,status:'REQUESTED'};
     } catch(e) { return this.translate(e); }
   }
-  async transitionRefund(id:number,action:'APPROVED'|'REJECTED'|'PAID'|'FAILED',userId:number,reference?:string) {
-    try { return await this.repo.transitionRefund(id,action,userId,reference); }
+  async transitionRefund(id:number,action:'APPROVED'|'REJECTED'|'PAID'|'FAILED',userId:number,reference?:string,reason?:string) {
+    try { const result=await this.repo.transitionRefund(id,action,userId,reference,reason);
+      if(action==='PAID' && result.bookingId){const booking=await this.repo.findBookingSlot(result.bookingId);if(booking)await this.redis.release(`booking:slot:${booking.pitchId}:${booking.slotId}:${String(booking.date).slice(0,10)}`,`booking:${result.bookingId}`);}
+      return result; }
     catch(e) { return this.translate(e); }
   }
 
-  async payDeposit(bookingId:number,method:'CASH'|'BANK_QR') {
-    const booking=await this.repo.findBookingById(bookingId);
-    if(!booking) throw new NotFoundException('Không tìm thấy đơn đặt sân');
-    if(booking.status!=='PENDING_DEPOSIT') throw new BadRequestException('Đơn đặt sân không ở trạng thái chờ đặt cọc');
-    const ref=`DEP_${booking.code}_${Date.now()}`;
-    await this.repo.createDepositPayment(bookingId,booking.depositDue,method,ref);
-    await this.repo.updateBookingStatus(bookingId,'DEPOSIT_PAID');
-    await this.repo.confirmSlotOccupancy(bookingId);
-    return {success:true,bookingId,status:'DEPOSIT_PAID',reference:ref};
-  }
   async getMyBookings(userId:number) { return this.repo.getBookingsByCustomer(userId); }
-  async cancelBooking(bookingId:number,reason:string,userId:number|null) {
-    const booking=await this.repo.findBookingById(bookingId);
-    if(!booking) throw new NotFoundException('Không tìm thấy đơn đặt sân');
-    if(['CANCELLED','COMPLETED'].includes(booking.status)) throw new BadRequestException('Không thể hủy đơn này');
-    const wasDepositPaid=booking.status==='DEPOSIT_PAID';
-    await this.repo.updateBookingStatus(bookingId,'CANCELLED');
-    await this.repo.releaseSlotOccupancy(bookingId);
-    if(wasDepositPaid) {
-      const payment=await this.repo.findSucceededPaymentByBooking(bookingId);
-      if(payment) await this.repo.createRefundRequest(payment.id,payment.amount,reason||'Khách hủy sân',userId);
-    }
-    return {success:true,status:'CANCELLED'};
-  }
+
 }

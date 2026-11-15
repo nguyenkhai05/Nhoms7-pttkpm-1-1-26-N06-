@@ -4,9 +4,10 @@ import { PaymentsService } from './payments.service.js';
 import { PaymentsRepository } from './payments.repository.js';
 import { DatabaseModule } from '../database/database.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { BookingsModule } from '../bookings/bookings.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule],
+  imports: [DatabaseModule, AuthModule, BookingsModule],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaymentsRepository],
   exports: [PaymentsService],

@@ -10,6 +10,6 @@ import { RedisLockService } from './redis-lock.service.js';
   imports: [DatabaseModule, AuthModule],
   controllers: [BookingsController],
   providers: [BookingsRepository, BookingsService, RedisLockService],
-  exports: [BookingsService],
+  exports: [BookingsService, RedisLockService],
 })
 export class BookingsModule {}
