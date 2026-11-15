@@ -70,7 +70,9 @@ export class OperationsController {
     res.send('\uFEFF' + csv);
   }
   @Get('audit-logs') @UseGuards(JwtAuthGuard, PermissionsGuard) @RequirePermissions('AUDIT_READ')
-  audit(@Query('page') page?: string, @Query('action') action?: string) { return this.ops.listAudit(page ? Number(page) : 1, action); }
+  audit(@Query('page') page?: string, @Query('action') action?: string, @Query('actorId') actorId?: string, @Query('entityType') entityType?: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.ops.listAudit({ page: page ? Number(page) : 1, action, actorId: actorId ? Number(actorId) : undefined, entityType, from, to });
+  }
   @Get('payments/events') @UseGuards(JwtAuthGuard, PermissionsGuard) @RequirePermissions('PAYMENT_WRITE')
   events(@Query('status') status?: string) { return this.ops.events(status); }
   @Post('payments/events/:id/resolve') @UseGuards(JwtAuthGuard, PermissionsGuard) @RequirePermissions('PAYMENT_WRITE')

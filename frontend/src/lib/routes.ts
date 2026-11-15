@@ -10,6 +10,7 @@ export type Page =
   | "transactions"
   | "inventory"
   | "audit"
+  | "users"
   | "login"
   | "register"
   | "history";
@@ -26,6 +27,7 @@ export const titles: Record<Page, string> = {
   transactions: "Giao dịch & hoàn tiền",
   inventory: "Quản lý kho",
   audit: "Audit Log",
+  users: "Tài khoản nhân sự",
   login: "Đăng nhập",
   register: "Đăng ký",
   history: "Lịch sử đặt sân",
@@ -42,6 +44,7 @@ export const links: { page: Page; label: string; icon: string }[] = [
   { page: "dashboard", label: "Báo cáo tổng quan", icon: "◫" },
   { page: "inventory", label: "Quản lý kho", icon: "▤" },
   { page: "audit", label: "Audit Log", icon: "☷" },
+  { page: "users", label: "Nhân sự & vai trò", icon: "♙" },
 ];
 
 export function currentPage(): Page {

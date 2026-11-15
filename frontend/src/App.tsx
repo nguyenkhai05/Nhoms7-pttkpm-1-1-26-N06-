@@ -12,6 +12,7 @@ import DashboardPage from "./pages/DashboardPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import InventoryPage from "./pages/InventoryPage";
 import AuditPage from "./pages/AuditPage";
+import UserManagementPage from "./pages/UserManagementPage";
 import BookingHistoryPage from "./pages/BookingHistoryPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -31,6 +32,7 @@ function CurrentPage() {
     transactions: TransactionsPage,
     inventory: InventoryPage,
     audit: AuditPage,
+    users: UserManagementPage,
     history: BookingHistoryPage,
     login: LoginPage,
     register: RegisterPage,

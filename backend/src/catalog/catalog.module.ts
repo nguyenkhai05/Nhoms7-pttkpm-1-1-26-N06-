@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module.js';
+import { AuthModule } from '../auth/auth.module.js';
 import { CatalogPitchController } from './catalog-pitch.controller.js';
 import { CatalogPitchRepository } from './catalog-pitch.repository.js';
 import { CatalogPitchService } from './catalog-pitch.service.js';
@@ -8,7 +9,7 @@ import { CatalogRepository } from './catalog.repository.js';
 import { CatalogService } from './catalog.service.js';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, AuthModule],
   controllers: [CatalogController, CatalogPitchController],
   providers: [CatalogRepository, CatalogService, CatalogPitchRepository, CatalogPitchService],
   exports: [CatalogService, CatalogPitchService],

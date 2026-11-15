@@ -107,7 +107,7 @@ export default function TransactionsPage(){
             <p>{r.reason}</p>{r.bankName&&<p className="muted">Hoàn về: {r.bankName} · {r.accountNumber} · {r.accountName}</p>}{r.rejectReason&&<p className="muted">Lý do từ chối: {r.rejectReason}</p>}<p className="muted">Người yêu cầu: {r.requesterName||"—"} · Người duyệt: {r.approverName||"Chưa duyệt"}</p>
             <span className="badge amber">{r.status}</span>
             {canApprove&&r.status==="REQUESTED"&&<div className="action-row"><button className="primary" onClick={()=>void act(`/refunds/${r.id}/approve`)}>Duyệt</button><button className="outline" onClick={()=>{const reason=window.prompt("Lý do từ chối hoàn tiền:");if(reason?.trim())void act(`/refunds/${r.id}/reject`,{reason});}}>Từ chối</button></div>}
-            {canApprove&&r.status==="APPROVED"&&<div className="action-row"><button className="primary" onClick={()=>void act(`/refunds/${r.id}/paid`,{providerReference:window.prompt("Mã tham chiếu hoàn tiền (nếu có):")||undefined})}>Xác nhận đã hoàn</button><button className="outline" onClick={()=>void act(`/refunds/${r.id}/failed`)}>Đánh dấu thất bại</button></div>}
+            {canApprove&&r.status==="APPROVED"&&<div className="action-row"><button className="primary" onClick={()=>{const reference=window.prompt("Nhập mã tham chiếu sau khi ngân hàng đã chuyển tiền:")?.trim();if(reference)void act(`/refunds/${r.id}/paid`,{providerReference:reference});}}>Xác nhận đã hoàn</button><button className="outline" onClick={()=>void act(`/refunds/${r.id}/failed`)}>Đánh dấu thất bại</button></div>}
           </div>)}
         </>}
       </section>

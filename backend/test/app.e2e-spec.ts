@@ -3,6 +3,8 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module.js';
+import { MysqlDatabase } from './../src/database/mysqlDatabase.js';
+import { RedisLockService } from './../src/bookings/redis-lock.service.js';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -10,7 +12,10 @@ describe('AppController (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MysqlDatabase).useValue({ pool: {} })
+      .overrideProvider(RedisLockService).useValue({})
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -24,6 +29,6 @@ describe('AppController (e2e)', () => {
   });
 
   afterEach(async () => {
-    await app.close();
+    await app?.close();
   });
 });

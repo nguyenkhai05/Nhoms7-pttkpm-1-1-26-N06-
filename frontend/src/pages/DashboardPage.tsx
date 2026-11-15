@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const [from, setFrom] = useState(iso(new Date(today.getFullYear(), today.getMonth(), 1)));
   const [to, setTo] = useState(iso(today));
+  const [groupBy, setGroupBy] = useState('day');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
 
@@ -16,7 +17,7 @@ export default function DashboardPage() {
     try {
       setError('');
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/reports/summary?from=${from}&to=${to}&groupBy=day`, {
+      const response = await fetch(`/api/reports/summary?from=${from}&to=${to}&groupBy=${groupBy}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const json = await response.json();
@@ -32,7 +33,7 @@ export default function DashboardPage() {
   async function exportCsv() {
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(`/api/reports/export?from=${from}&to=${to}&groupBy=day`, {
+      const response = await fetch(`/api/reports/export?from=${from}&to=${to}&groupBy=${groupBy}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!response.ok) throw new Error('Không thể xuất báo cáo.');
@@ -49,13 +50,14 @@ export default function DashboardPage() {
   }
 
   return <>
-    <PageHead tag="QUẢN TRỊ · UC2.1" title="Báo cáo tổng quan" subtitle="KPI được tổng hợp từ payments, refunds, bookings và slot occupancy." />
-    <DemoBanner>Đây là dashboard phục vụ bài tập lớn. Do schema ban đầu lưu doanh thu dịch vụ theo đơn riêng, số liệu phân tách sân/dịch vụ được ghi chú rõ trong API.</DemoBanner>
+    <PageHead tag="QUẢN TRỊ · UC2.1" title="Báo cáo tổng quan" subtitle="KPI được tổng hợp từ thanh toán, hoàn cọc và Booking theo kỳ lọc." />
+    <DemoBanner>Tiền sân và dịch vụ được phân bổ theo tỷ trọng của đơn từ các khoản đã thu. Khoản đã hoàn được trừ trong doanh thu ròng.</DemoBanner>
     <section className="panel">
       <div className="panel-head">
         <h2>Bộ lọc báo cáo</h2>
         <div className="date-label">
           Từ <input type="date" value={from} onChange={e => setFrom(e.target.value)} /> đến <input type="date" value={to} onChange={e => setTo(e.target.value)} />
+          <select aria-label="Nhóm báo cáo" value={groupBy} onChange={e => setGroupBy(e.target.value)}><option value="day">Theo ngày</option><option value="week">Theo tuần</option><option value="month">Theo tháng</option><option value="year">Theo năm</option></select>
           <button className="primary" onClick={() => void load()}>Lọc</button>
           <button className="outline" onClick={() => void exportCsv()}>Xuất CSV / Excel</button>
         </div>
@@ -68,10 +70,12 @@ export default function DashboardPage() {
         <Metric name="Tổng đơn hợp lệ" value={String(data.totalBookings)} icon="▣" />
         <Metric name="Tỷ lệ lấp đầy" value={`${data.fillingRate}%`} icon="◕" />
         <Metric name="Đơn chờ cọc" value={String(data.pendingBookings)} icon="◷" />
+        <Metric name="Thu từ sân" value={money(Number(data.pitchRevenue))} icon="₫" />
+        <Metric name="Thu từ dịch vụ" value={money(Number(data.serviceRevenue))} icon="₫" />
       </div>
       <div className="two-columns">
         <section className="panel">
-          <h2>Thu tiền theo ngày</h2>
+          <h2>Thu tiền theo {groupBy === 'day' ? 'ngày' : groupBy === 'week' ? 'tuần' : groupBy === 'month' ? 'tháng' : 'năm'}</h2>
           {data.series?.length ? data.series.map((item: any) => <div className="activity" key={item.bucket}><b>{String(item.bucket).slice(0, 10)}</b><span>{money(Number(item.grossRevenue))}</span><small>{item.payments} giao dịch</small></div>) : <p>Chưa có giao dịch trong khoảng này.</p>}
         </section>
         <section className="panel">

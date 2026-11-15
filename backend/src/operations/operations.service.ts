@@ -5,7 +5,7 @@ import { RedisLockService } from '../bookings/redis-lock.service.js';
 
 export function calculateRefundPolicy(hoursBeforeStart: number, depositAmount: number) {
   const percent = hoursBeforeStart >= 24 ? 100 : hoursBeforeStart >= 12 ? 50 : 0;
-  return { refundPercent: percent, refundAmount: Math.floor(Math.max(0, depositAmount) * percent / 100), flow: percent === 100 ? 'AUTO' : percent === 50 ? 'NEED_APPROVAL' : 'NO_REFUND' } as const;
+  return { refundPercent: percent, refundAmount: Math.floor(Math.max(0, depositAmount) * percent / 100), flow: percent > 0 ? 'NEED_APPROVAL' : 'NO_REFUND' } as const;
 }
 
 @Injectable()
@@ -22,6 +22,7 @@ export class OperationsService {
     if (!Number.isSafeInteger(n) || n < min) throw new BadRequestException(`${label} không hợp lệ.`);
     return n;
   }
+  private validDate(value:string){return /^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;}
   private code(prefix = 'DSN') { return prefix + randomBytes(5).toString('hex').toUpperCase(); }
   private async releaseBookingLock(bookingId:number){const [rows]=await this.db.pool.execute<any[]>('SELECT pitchId,slotId,date FROM bookings WHERE id=?',[bookingId]);const b=rows[0];if(b)await this.redis.release(`booking:slot:${b.pitchId}:${b.slotId}:${String(b.date).slice(0,10)}`,`booking:${bookingId}`); }
 
@@ -48,11 +49,7 @@ export class OperationsService {
         if(!payments[0]) throw new ConflictException('Không tìm thấy giao dịch cọc.');
         await c.execute(`INSERT INTO refunds(paymentId,amount,reason,status,requestedBy,bankName,accountNumber,accountName) VALUES (?,?,?,'REQUESTED',?,?,?,?)`,[payments[0].id,preview.refundAmount,`Hủy sân: ${String(body.reason||'Khách yêu cầu hủy sân')}`,userId,bankName,accountNumber,accountName]);
       } else {
-        if(preview.refundAmount>0) {
-          if(!payments[0]) throw new ConflictException('Không tìm thấy giao dịch cọc.');
-          await c.execute(`INSERT INTO refunds(paymentId,amount,reason,status,requestedBy,approvedBy,paidAt,providerReference,bankName,accountNumber,accountName) VALUES (?,?,?,'PAID',?,NULL,UTC_TIMESTAMP(),?,?,?,?)`,[payments[0].id,preview.refundAmount,String(body.reason||'Hủy sân trước 24 giờ - hoàn tự động'),userId,`DEMO-REFUND-${id}-${Date.now()}`,bankName,accountNumber,accountName]);
-          await c.execute("UPDATE bookings SET status='CANCELLED' WHERE id=?",[id]);
-        } else await c.execute("UPDATE bookings SET status='CANCELLED' WHERE id=?",[id]);
+        await c.execute("UPDATE bookings SET status='CANCELLED' WHERE id=?",[id]);
         await c.execute('DELETE FROM slot_occupancy WHERE bookingId=?',[id]);
       }
       if(preview.flow!=='NEED_APPROVAL'){
@@ -304,7 +301,7 @@ export class OperationsService {
     for(const dayType of ['WEEKDAY','WEEKEND','HOLIDAY']){const group=prices.filter(p=>p.dayType===dayType).sort((a,b)=>a.start.localeCompare(b.start));for(let i=1;i<group.length;i++)if(group[i].start<group[i-1].end)throw new BadRequestException(`Khung ${group[i-1].start}-${group[i-1].end} chồng với ${group[i].start}-${group[i].end} (${dayType}).`);}
     const c=await this.db.pool.getConnection();try{await c.beginTransaction();await c.execute('SELECT id FROM pitches WHERE id=? FOR UPDATE',[id]);const [old]=await c.execute<any[]>('SELECT dayType,start,end,amount,depositPercent FROM prices WHERE pitchId=? FOR UPDATE',[id]);await c.execute('DELETE FROM prices WHERE pitchId=?',[id]);for(const p of prices)await c.execute('INSERT INTO prices(pitchId,dayType,`start`,`end`,amount,depositPercent) VALUES (?,?,?,?,?,?)',[id,p.dayType,p.start,p.end,Number(p.amount),Number(p.depositPercent)]);await c.commit();await this.writeAudit(userId,'PRICE_CHANGED','PITCH',id,old,prices);return {data:{saved:prices.length,warnings:[]}};}catch(e){await c.rollback();throw e;}finally{c.release();}
   }
-  async maintenancePreview(id:number,body:any){const [r]=await this.db.pool.execute<any[]>(`SELECT b.id,b.code,b.status,b.date,b.pitchId,b.slotId,s.start,s.end FROM bookings b JOIN slots s ON s.id=b.slotId WHERE b.pitchId=? AND b.date BETWEEN DATE(?) AND DATE(?) AND b.status IN ('PENDING_DEPOSIT','DEPOSIT_PAID','CHECKED_IN')`,[id,body.from,body.to]);return {data:r};}
+  async maintenancePreview(id:number,body:any){const [r]=await this.db.pool.execute<any[]>(`SELECT b.id,b.code,b.status,b.date,b.pitchId,b.slotId,s.start,s.end FROM bookings b JOIN slots s ON s.id=b.slotId WHERE b.pitchId=? AND b.date BETWEEN DATE(?) AND DATE(?) AND b.status IN ('PENDING_DEPOSIT','DEPOSIT_PAID','CHECKED_IN')`,[id,body.from,body.to]);const active=r.find((b:any)=>b.status==='CHECKED_IN');if(active)throw new ConflictException(`Đơn ${active.code} đang sử dụng sân. Hãy hoàn thành hoặc xử lý đơn này trước khi tạo lịch bảo trì.`);return {data:r};}
   async maintenance(id: number, body: any, userId: number) {
     const from = String(body.from || '');
     const to = String(body.to || '');
@@ -332,6 +329,8 @@ export class OperationsService {
            AND b.status IN ('PENDING_DEPOSIT','DEPOSIT_PAID','CHECKED_IN')
          FOR UPDATE`, [id, from, to]);
       affectedBookings = bookings;
+      const activeBooking = bookings.find((booking: any) => booking.status === 'CHECKED_IN');
+      if (activeBooking) throw new ConflictException(`Đơn ${activeBooking.code} đang sử dụng sân. Hãy hoàn thành hoặc xử lý đơn này trước khi tạo lịch bảo trì.`);
       const impacted = bookings.filter((booking: any) => booking.status !== 'PENDING_DEPOSIT');
       const resolutions = Array.isArray(body.resolutions) ? body.resolutions : [];
       for (const booking of impacted) {
@@ -399,12 +398,12 @@ export class OperationsService {
             [paymentRows[0].id]);
           if (existingRefunds.length) throw new ConflictException(`Booking ${booking.code} đã có yêu cầu hoàn cọc.`);
 
+          const bankName=String(resolution.bankName||'').trim(),accountNumber=String(resolution.accountNumber||'').trim(),accountName=String(resolution.accountName||'').trim();
+          if(!bankName||!accountNumber||!accountName)throw new BadRequestException(`Cần thông tin tài khoản hoàn cọc của đơn ${booking.code}.`);
           await connection.execute(
-            `INSERT INTO refunds(paymentId,amount,reason,status,requestedBy,approvedBy,paidAt,providerReference)
-             VALUES (?,?,?,'PAID',?,?,UTC_TIMESTAMP(),?)`,
-            [paymentRows[0].id, amount, `Bảo trì sân: ${reason}`, userId, userId, `MAINT-${booking.id}-${Date.now()}`]);
-          await connection.execute("UPDATE bookings SET status='CANCELLED' WHERE id=?", [booking.id]);
-          await connection.execute('DELETE FROM slot_occupancy WHERE bookingId=?', [booking.id]);
+            `INSERT INTO refunds(paymentId,amount,reason,status,requestedBy,bankName,accountNumber,accountName)
+             VALUES (?,?,?,'REQUESTED',?,?,?,?)`,
+            [paymentRows[0].id, amount, `Bảo trì sân: ${reason}`, userId, bankName, accountNumber, accountName]);
         }
       }
 
@@ -456,19 +455,37 @@ export class OperationsService {
     }
   }
 
-  async report(from:string,to:string,groupBy:string){if(!from||!to||from>to)throw new BadRequestException('Khoảng ngày không hợp lệ.');if(!['day','week','month','year'].includes(groupBy))throw new BadRequestException('Kiểu nhóm không hợp lệ.');
-    const [kpi]=await this.db.pool.execute<any[]>(`SELECT (SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='SUCCEEDED' AND DATE(paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ?) grossRevenue,(SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='SUCCEEDED' AND DATE(paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ?)-(SELECT COALESCE(SUM(amount),0) FROM refunds WHERE status='PAID' AND DATE(paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ?) netRevenue,(SELECT COUNT(*) FROM bookings WHERE date BETWEEN ? AND ? AND status IN ('DEPOSIT_PAID','CHECKED_IN','COMPLETED')) totalBookings,(SELECT COUNT(*) FROM bookings WHERE date BETWEEN ? AND ? AND status='PENDING_DEPOSIT') pendingBookings,(SELECT COALESCE(SUM(si.quantity*si.unitPrice),0) FROM service_order_items si JOIN service_orders so ON so.id=si.orderId JOIN bookings b ON b.id=so.bookingId WHERE b.date BETWEEN ? AND ? AND so.status IN ('CONFIRMED','PAID')) serviceRevenue`,[from,to,from,to,from,to,from,to,from,to,from,to]);
+  async report(from:string,to:string,groupBy:string){if(!this.validDate(from)||!this.validDate(to)||from>to||Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z')>365*86400000)throw new BadRequestException('Khoảng ngày không hợp lệ hoặc dài quá 366 ngày.');if(!['day','week','month','year'].includes(groupBy))throw new BadRequestException('Kiểu nhóm không hợp lệ.');
+    const [kpiRows]=await this.db.pool.execute<any[]>(`SELECT (SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='SUCCEEDED' AND DATE(paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ?) grossRevenue,(SELECT COALESCE(SUM(amount),0) FROM payments WHERE status='SUCCEEDED' AND DATE(paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ?)-(SELECT COALESCE(SUM(amount),0) FROM refunds WHERE status='PAID' AND DATE(paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ?) netRevenue,(SELECT COUNT(*) FROM bookings WHERE date BETWEEN ? AND ? AND status IN ('DEPOSIT_PAID','CHECKED_IN','COMPLETED')) totalBookings,(SELECT COUNT(*) FROM bookings WHERE date BETWEEN ? AND ? AND status='PENDING_DEPOSIT') pendingBookings`,[from,to,from,to,from,to,from,to,from,to]);
     const [byStatus]=await this.db.pool.execute<any[]>(`SELECT status,COUNT(*) total FROM bookings WHERE date BETWEEN ? AND ? GROUP BY status`,[from,to]);
     const bucketExpr=groupBy==='week'?"DATE_FORMAT(paidAt + INTERVAL 7 HOUR,'%x-W%v')":groupBy==='month'?"DATE_FORMAT(paidAt + INTERVAL 7 HOUR,'%Y-%m')":groupBy==='year'?'YEAR(paidAt + INTERVAL 7 HOUR)':'DATE(paidAt + INTERVAL 7 HOUR)';
     const [series]=await this.db.pool.execute<any[]>(`SELECT ${bucketExpr} bucket,SUM(amount) grossRevenue,COUNT(*) payments FROM payments WHERE status='SUCCEEDED' AND DATE(paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ? GROUP BY bucket ORDER BY bucket`,[from,to]);
-    const [capacity]=await this.db.pool.execute<any[]>(`SELECT COUNT(*) total FROM slots s JOIN pitches p ON p.id=s.pitchId WHERE p.status='ACTIVE'`);
-    const [used]=await this.db.pool.execute<any[]>(`SELECT COUNT(*) total FROM slot_occupancy WHERE date BETWEEN ? AND ? AND state='CONFIRMED'`,[from,to]);
-    const [blocks]=await this.db.pool.execute<any[]>(`SELECT pb.pitchId,pb.startsAt,DATE_SUB(pb.endsAt, INTERVAL 1 SECOND) endsAt,(SELECT COUNT(*) FROM slots s WHERE s.pitchId=pb.pitchId) slotCount FROM pitch_blocks pb WHERE DATE(pb.endsAt)>=? AND DATE(pb.startsAt)<=?`,[from,to]);
-    const days=Math.max(1,Math.floor((new Date(to+'T00:00:00Z').getTime()-new Date(from+'T00:00:00Z').getTime())/86400000)+1);const blocked=blocks.reduce((sum:number,b:any)=>{const start=Math.max(new Date(from+'T00:00:00Z').getTime(),new Date(String(b.startsAt).slice(0,10)+'T00:00:00Z').getTime());const end=Math.min(new Date(to+'T00:00:00Z').getTime(),new Date(String(b.endsAt).slice(0,10)+'T00:00:00Z').getTime());return sum+Math.max(0,Math.floor((end-start)/86400000)+1)*Number(b.slotCount);},0);const available=Math.max(0,Number(capacity[0].total)*days-blocked);
-    const serviceRevenue=Number(kpi.serviceRevenue||0);const grossRevenue=Number(kpi.grossRevenue||0);return {data:{netRevenue:Number(kpi.netRevenue),grossRevenue,totalBookings:Number(kpi.totalBookings),pendingBookings:Number(kpi.pendingBookings),pitchRevenue:Math.max(0,grossRevenue-serviceRevenue),serviceRevenue,byStatus,series,fillingRate:available?Math.min(100,Math.round(Number(used[0].total)/available*10000)/100):0,from,to,groupBy,notes:'Doanh thu dịch vụ được ước tính từ các dòng dịch vụ của booking đã xác nhận; doanh thu sân là phần còn lại của khoản thu.'}};
+    const [capacityRows]=await this.db.pool.execute<any[]>("WITH RECURSIVE days AS (SELECT CAST(? AS DATE) d UNION ALL SELECT d + INTERVAL 1 DAY FROM days WHERE d < ?) SELECT COUNT(*) total FROM days JOIN slots s JOIN pitches p ON p.id=s.pitchId AND p.status='ACTIVE' WHERE NOT EXISTS (SELECT 1 FROM pitch_blocks pb WHERE pb.pitchId=p.id AND TIMESTAMP(days.d,s.start)<pb.endsAt AND TIMESTAMP(days.d,s.end)>pb.startsAt)",[from,to]);
+    const [usedRows]=await this.db.pool.execute<any[]>("SELECT COUNT(*) total FROM bookings WHERE date BETWEEN ? AND ? AND status IN ('DEPOSIT_PAID','CHECKED_IN','COMPLETED')",[from,to]);
+    const available=Number(capacityRows[0].total);
+    const kpi=kpiRows[0];
+    const [serviceRows]=await this.db.pool.execute<any[]>("SELECT COALESCE(SUM(CASE WHEN py.serviceOrderId IS NOT NULL OR py.purpose='SERVICE' THEN py.amount WHEN py.bookingId IS NOT NULL THEN py.amount*COALESCE(b.serviceAmount,0)/NULLIF(b.pitchAmount+COALESCE(b.serviceAmount,0),0) ELSE 0 END),0) serviceRevenue FROM payments py LEFT JOIN bookings b ON b.id=py.bookingId WHERE py.status='SUCCEEDED' AND DATE(py.paidAt + INTERVAL 7 HOUR) BETWEEN ? AND ?",[from,to]);
+    const grossRevenue=Number(kpi.grossRevenue||0);
+    const serviceRevenue=Math.min(grossRevenue,Math.max(0,Math.round(Number(serviceRows[0].serviceRevenue||0))));
+    return {data:{netRevenue:Number(kpi.netRevenue),grossRevenue,totalBookings:Number(kpi.totalBookings),pendingBookings:Number(kpi.pendingBookings),pitchRevenue:grossRevenue-serviceRevenue,serviceRevenue,byStatus,series,fillingRate:available?Math.min(100,Math.round(Number(usedRows[0].total)/available*10000)/100):0,from,to,groupBy,notes:'Doanh thu sân/dịch vụ là số tiền đã thu trước hoàn, phân bổ theo tỷ trọng tiền sân và dịch vụ trong từng booking. Tiền hoàn được trừ ở doanh thu ròng.'}};
   }
   async exportCsv(from:string,to:string,groupBy:string){const report=(await this.report(from,to,groupBy)).data;const lines=[['Chi so','Gia tri'],['Tu ngay',from],['Den ngay',to],['Doanh thu rong',report.netRevenue],['Doanh thu thu vao',report.grossRevenue],['Tong don hop le',report.totalBookings],['Ty le lap day (%)',report.fillingRate],['Doanh thu san',report.pitchRevenue],['Doanh thu dich vu',report.serviceRevenue],[],['Ngay','Doanh thu','So giao dich'],...report.series.map((x:any)=>[String(x.bucket),x.grossRevenue,x.payments])];return lines.map((row:any[])=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');}
-  async listAudit(page=1,action?:string){if(!Number.isSafeInteger(page)||page<1)throw new BadRequestException('Số trang không hợp lệ.');const limit=50,offset=(page-1)*limit;const [r]=await this.db.pool.execute<any[]>(`SELECT a.*,u.fullName actorName FROM audit_logs a LEFT JOIN users u ON u.id=a.actorId ${action?'WHERE a.action=?':''} ORDER BY a.createdAt DESC LIMIT ? OFFSET ?`,action?[action,limit,offset]:[limit,offset]);return {data:r,page:Math.max(1,page),limit};}
+  async listAudit(filters:{page:number;action?:string;actorId?:number;entityType?:string;from?:string;to?:string}){
+    const {page,action,actorId,entityType,from,to}=filters;
+    if(!Number.isSafeInteger(page)||page<1)throw new BadRequestException('Số trang không hợp lệ.');
+    if(actorId!==undefined&&(!Number.isSafeInteger(actorId)||actorId<1))throw new BadRequestException('Mã người thực hiện không hợp lệ.');
+    if((action&&action.length>100)||(entityType&&entityType.length>80))throw new BadRequestException('Bộ lọc quá dài.');
+    if((from&&!this.validDate(from))||(to&&!this.validDate(to))||(from&&to&&from>to))throw new BadRequestException('Khoảng ngày không hợp lệ.');
+    const where:string[]=[],args:(string|number)[]=[];
+    if(action){where.push('a.action=?');args.push(action.trim());}
+    if(actorId!==undefined){where.push('a.actorId=?');args.push(actorId);}
+    if(entityType){where.push('a.entityType=?');args.push(entityType.trim());}
+    if(from){where.push('a.createdAt>=?');args.push(new Date(`${from}T00:00:00+07:00`).toISOString().slice(0,19).replace('T',' '));}
+    if(to){where.push('a.createdAt<?');args.push(new Date(new Date(`${to}T00:00:00+07:00`).getTime()+86400000).toISOString().slice(0,19).replace('T',' '));}
+    const limit=50,offset=(page-1)*limit;
+    const [rows]=await this.db.pool.execute<any[]>(`SELECT a.*,u.fullName actorName FROM audit_logs a LEFT JOIN users u ON u.id=a.actorId ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY a.createdAt DESC,a.id DESC LIMIT ? OFFSET ?`,[...args,limit,offset]);
+    return {data:rows,page,limit};
+  }
   async resolveEvent(id:number,body:any,userId:number){
     const c=await this.db.pool.getConnection();try{await c.beginTransaction();const [rows]=await c.execute<any[]>('SELECT * FROM payment_events WHERE id=? FOR UPDATE',[this.int(id,'Payment event')]);const event=rows[0];if(!event)throw new NotFoundException('Không tìm thấy giao dịch treo.');if(event.status!=='NEEDS_REVIEW')throw new ConflictException('Giao dịch này không ở trạng thái cần đối soát.');
       if(body.action==='DISMISS'){await c.execute("UPDATE payment_events SET status='REJECTED' WHERE id=?",[id]);await c.execute("INSERT INTO audit_logs(actorId,action,entityType,entityId,afterData) VALUES (?,'PAYMENT_EVENT_DISMISSED','PAYMENT_EVENT',?,JSON_OBJECT('note',?))",[userId,String(id),String(body.note||'')]);await c.commit();return {data:{id,status:'REJECTED'}};}

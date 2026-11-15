@@ -63,7 +63,8 @@ export class PaymentsController {
   @UseGuards(PermissionsGuard)
   @RequirePermissions('REFUND_APPROVE')
   async paid(@Req() req:AuthenticatedRequest,@Param('id') id:string,@Body() body:{providerReference?:string}) {
-    return {data:await this.service.transitionRefund(Number(id),'PAID',req.user.id,body.providerReference)};
+    if(!body?.providerReference?.trim()) throw new BadRequestException('Chỉ xác nhận đã hoàn sau khi chuyển tiền và nhập mã tham chiếu ngân hàng.');
+    return {data:await this.service.transitionRefund(Number(id),'PAID',req.user.id,body.providerReference.trim())};
   }
   @Patch('refunds/:id/failed')
   @UseGuards(PermissionsGuard)

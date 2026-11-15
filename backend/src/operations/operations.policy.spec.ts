@@ -3,7 +3,7 @@ import { calculateRefundPolicy } from './operations.service.js';
 
 describe('cancellation deposit policy', () => {
   it('refunds 100 percent at exactly 24 hours', () => {
-    expect(calculateRefundPolicy(24, 300000)).toEqual({ refundPercent: 100, refundAmount: 300000, flow: 'AUTO' });
+      expect(calculateRefundPolicy(24, 300000)).toEqual({ refundPercent: 100, refundAmount: 300000, flow: 'NEED_APPROVAL' });
   });
   it('uses the 50 percent tier one second before 24 hours', () => {
     expect(calculateRefundPolicy(24 - 1 / 3600, 300000)).toEqual({ refundPercent: 50, refundAmount: 150000, flow: 'NEED_APPROVAL' });

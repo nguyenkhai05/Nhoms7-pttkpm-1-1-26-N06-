@@ -21,7 +21,7 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
 
     try {
       if (page === "register") {
-        await axios.post("http://localhost:3000/api/auth/register", {
+        await axios.post("/api/auth/register", {
           email,
           fullName,
           password,
@@ -31,7 +31,7 @@ export default function AuthForm({ mode: page }: { mode: "login" | "register" })
         setNotice("Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
         navigate("login");
       } else {
-        const response = await axios.post("http://localhost:3000/api/auth/login", {
+        const response = await axios.post("/api/auth/login", {
           identifier: email,
           password,
         });

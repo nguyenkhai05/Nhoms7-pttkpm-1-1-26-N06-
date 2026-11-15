@@ -1,13 +1,15 @@
-# Tích hợp issue: tìm kiếm sân và xem chi tiết lịch trống
+# SportSpace - hệ thống quản lý sân bóng
 
-Đây là bản sửa trên ZIP mã nguồn hiện tại của nhóm. Backend NestJS truy vấn MySQL; frontend React TypeScript hiển thị cùng phong cách với bản giao diện mẫu SportSpace.
+Backend NestJS truy vấn MySQL và dùng Redis để giữ ca; frontend React TypeScript dùng proxy `/api` từ Vite. Các phần quản trị có Dashboard, quản lý nhân sự, Audit Log, sân và bảng giá, kho, lịch sân và giao dịch. QR và xác nhận cọc hiện có chế độ **mô phỏng**, không phải giao dịch ngân hàng thật.
 
 ## Chạy trong Codespaces
 
 1. Ở thư mục gốc, tạo `.env` từ `.env.example` và đặt `MYSQL_ROOT_PASSWORD`, `DB_PASSWORD` của riêng bạn. Giữ file `.env` ngoài Git.
 2. Chạy `docker compose up -d` và chờ `docker compose ps` báo MySQL `healthy`. Khi volume mới được tạo, image chạy lần lượt `database/01_schema.sql`, `02_procedures.sql`, `03_seed.sql`. Nếu dùng MySQL Workbench, xem hướng dẫn nhập SQL tại `database/README_DATABASE.md`.
-3. Trong `backend`, tạo `.env` từ `.env.example`, đặt `DB_PASSWORD` giống ở bước 1, chạy `npm ci` rồi `npm run start:dev`. Backend chạy cổng 3000. File `backend/pitch.sqlite` từ ZIP cũ không được backend MySQL sử dụng.
-4. Trong `frontend`, chạy `npm ci` rồi `npm run dev`, mở cổng 5173 và truy cập `/#/search`.
+3. Trong `backend`, tạo `.env` từ `.env.example`, đặt `DB_PASSWORD` giống ở bước 1 và thay các giá trị `SEED_*_PASSWORD`; chạy `npm ci`, `npm run seed:staff`, rồi `npm run start:dev`. Backend chạy cổng 3000. File `backend/pitch.sqlite` từ ZIP cũ không được backend MySQL sử dụng.
+4. Trong `frontend`, chạy `npm ci` rồi `npm run dev`, mở cổng 5173 và truy cập `/#/search`. Đăng nhập và các API frontend đi qua proxy `/api`, phù hợp khi mở cổng frontend từ Codespaces.
+5. Với database đã tạo từ bản cũ, chỉ chạy `database/05_demo_extensions_existing_db.sql` **một lần**, rồi chạy lại `database/02_procedures.sql`; xem `database/README_DATABASE.md`. Không chạy migration này với database mới.
+6. Trước demo: chạy `npm run build`, `npm test` và `npm run test:e2e` trong `backend`; chạy `npm run build` trong `frontend`. Các kiểm thử hiện có dùng stub cho MySQL/Redis; hãy thử thủ công các luồng đặt sân, cọc, check-in và hoàn tiền trên môi trường MySQL/Redis thật.
 
 Thử API độc lập với trình duyệt:
 
@@ -33,4 +35,4 @@ Hãy thay ngày ở lệnh cuối bằng **ngày mai theo giờ Việt Nam** lú
 
 ## Kiểm chứng và giới hạn
 
-Trong môi trường tạo bản sửa: `npm run build` của backend và frontend đạt; `npm test` của backend đạt 8 kiểm thử (bộ lọc, màu lịch, giá ngày lễ, ba HTTP endpoint, đầu vào không hợp lệ và liên kết module database). Sau đó frontend được tách theo `pages/features/components/lib` và build lại thành công. **Chưa chạy MySQL thực tế ở môi trường này**, nên hãy thực hiện bốn bước chạy ở trên và xác nhận dữ liệu từ database của nhóm trước khi đóng issue. Trang đặt sân sau khi chọn ca và mọi màn hình ngoài UC1.2 vẫn là bản mẫu, không ghi dữ liệu.
+Các API và trang quản trị cần được thử với MySQL/Redis theo cấu hình trên. Dashboard tổng hợp các khoản đã thu và hoàn theo kỳ; khoản thu của sân/dịch vụ được phân bổ theo tỷ trọng trong đơn. Lịch sử khả năng khai thác của sân trước thời điểm đổi trạng thái chưa được lưu riêng, nên tỷ lệ lấp đầy cho giai đoạn trước khi đổi trạng thái sân cần đối chiếu thủ công. Không dùng nút thanh toán demo để xác nhận giao dịch ngân hàng thật.

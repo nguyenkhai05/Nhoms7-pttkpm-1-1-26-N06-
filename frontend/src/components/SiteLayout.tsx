@@ -21,7 +21,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("accessToken");
     if (token) {
       axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-      axios.get("http://localhost:3000/api/auth/me")
+      axios.get("/api/auth/me")
         .then((response) => {
           const currentUser = response.data.data as StoredUser;
           localStorage.setItem("user", JSON.stringify(currentUser));
@@ -40,7 +40,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   const adminLinks = [...links.slice(5), ...(canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE") ? [{page:"transactions" as const,label:"Giao dịch & hoàn tiền",icon:"₫"}] : [])].filter((item) =>
     item.page === "catalog" ? canAccess("PITCH_WRITE") :
     item.page === "schedule" ? canAccess("BOOKING_WRITE") :
-    item.page === "dashboard" ? canAccess("REPORT_READ") : item.page === "transactions" ? (canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE")) : item.page === "inventory" ? canAccess("STOCK_WRITE") : item.page === "audit" ? canAccess("AUDIT_READ") : false
+    item.page === "dashboard" ? canAccess("REPORT_READ") : item.page === "transactions" ? (canAccess("PAYMENT_WRITE") || canAccess("REFUND_APPROVE")) : item.page === "inventory" ? canAccess("STOCK_WRITE") : item.page === "audit" ? canAccess("AUDIT_READ") : item.page === "users" ? canAccess("USER_WRITE") : false
   );
   const logout = () => {
     localStorage.removeItem("accessToken");
